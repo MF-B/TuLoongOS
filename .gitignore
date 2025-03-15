@@ -1,8 +1,7 @@
 # Rust构建目录和生成文件
-/target/
 /os/target/
 **/*.rs.bk
-Cargo.lock
+/os/Cargo.lock
 .cargo-ok
 
 # 二进制文件和操作系统镜像
