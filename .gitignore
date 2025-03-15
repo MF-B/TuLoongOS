@@ -1,0 +1,52 @@
+# Rust构建目录和生成文件
+/target/
+/os/target/
+**/*.rs.bk
+Cargo.lock
+.cargo-ok
+
+# 二进制文件和操作系统镜像
+*.bin
+*.img
+*.iso
+*.elf
+*.o
+*.d
+
+# 调试文件
+*.sym
+*.map
+*.debug
+
+# 编译生成的临时文件
+.cargo/
+.rustc_info.json
+
+# 日志文件
+*.log
+
+# 编辑器和IDE配置
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-workspace
+*.swp
+*~
+
+# 操作系统特定文件
+.DS_Store
+Thumbs.db
+.directory
+
+# QEMU生成文件
+.gdb_history
+
+# 其他临时文件和缓存
+*.tmp
+*.temp
+*.bak
+*.backup
+.cache/
