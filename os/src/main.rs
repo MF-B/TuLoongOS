@@ -15,10 +15,9 @@ global_asm!(include_str!("entry.asm"));
 #[unsafe(no_mangle)]
 pub fn rust_main() -> ! {
     clear_bss();
-    
+    logo::print_logo();
     // 初始化日志系统
     logging::init();
-    logo::print_logo();
     trace!("TuLoong Booting...");
 
     // 日志测试
