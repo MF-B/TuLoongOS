@@ -1,12 +1,13 @@
 #![no_std]
 #![no_main]
 use core::arch::global_asm;
-
+use log::*;
 #[macro_use]
-mod uart;
+mod console;
 mod lang_items;
+mod uart;
 mod misc;
-pub mod console;
+mod logging;
 
 
 global_asm!(include_str!("entry.asm"));
@@ -14,16 +15,20 @@ global_asm!(include_str!("entry.asm"));
 #[unsafe(no_mangle)]
 pub fn rust_main() -> ! {
     clear_bss();
-    // 使用uart模块输出信息
-    print!("print!\n");
-    println!("Hello, {}LoongOS!",111);
-    println!("Kernel initialized successfully!");
 
-    println!("Debug!\n");
-    print!("print!\n");
+    // 初始化日志系统
+    logging::init();
+    println!("Level:{}", log::max_level());
+
+    // 日志测试
+    error!("Hello, Navi!");
+    warn!("Hello, Lain!");
+    info!("Hello, MFYX!");
+    debug!("Hello, TuloongOS!");
+    trace!("Hello, 你是谁?!");
 
     // 进行一些操作后关机
-    println!("Performing system shutdown...");
+    info!("Performing system shutdown...");
     misc::terminate();
 }
 
