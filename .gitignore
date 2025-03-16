@@ -19,7 +19,6 @@
 *.debug
 
 # 编译生成的临时文件
-.cargo/
 .rustc_info.json
 
 # 日志文件
