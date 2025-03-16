@@ -7,6 +7,17 @@ LoongOS是基于loongarch64指令集的一款操作系统
 - [ ] 实现特权级切换与批处理系统
 # 基础环境配置
 
+## 实验环境
+
+操作系统: Arch Linux x86_64
+
+## 安装rust
+
+```
+curl https://sh.rustup.rs -sSf | sh
+rustup install nightly
+```
+
 ## 安装qemu模拟器
 注意! 经测试，使用qemu-9.1.3版本时会出现bug，详细见[docs/qemu.md](docs/qemu.md)
 
@@ -22,12 +33,13 @@ sudo apt-get update \
 
 # 安装与qemu相关的软件包
 wget https://download.qemu.org/qemu-9.2.1.tar.xz
-tar xf qemu-9.2.1.tar.xz \
+tar xvf qemu-9.2.1.tar.xz \
     && cd qemu-9.2.1 \
     && ./configure --prefix=/qemu-bin-9.2.1 \
         --target-list=loongarch64-softmmu,riscv64-softmmu,aarch64-softmmu,x86_64-softmmu \
         --enable-gcov --enable-debug --enable-slirp \
     && make -j$(nproc)
+make install
 # 配置环境变量(可自行添加进~/.bashrc中)
 export PATH=$PATH:/qemu-bin-9.2.1/bin
 # 测试是否正确安装
