@@ -3,7 +3,7 @@
     // Ref: https://github.com/rust-lang/vscode-rust/issues/729
     // For vscode-rust plugin users:
     //"rust-analyzer.check.targets": "loongarch64-unknown-none",
-    "rust-analyzer.cargo.target": "looongarch64-unknown-none",
+    "rust-analyzer.cargo.target": "loongarch64-unknown-none",
     //"rust-analyzer.checkOnSave": false,
     "rust-analyzer.check.allTargets": false,
     // 根据 qemu.md 中的说明，可能需要禁用 LSX/LASX 扩展
