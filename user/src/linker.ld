@@ -1,24 +1,30 @@
-OUTPUT_ARCH(loongarch64)
+OUTPUT_ARCH(loongarch)
 ENTRY(_start)
-BASE_ADDRESS = 0x00400000;
+BASE_ADDRESS = 0x80400000;
 
-SECTIONS {
+SECTIONS
+{
     . = BASE_ADDRESS;
-
     .text : {
         *(.text.entry)
         *(.text .text.*)
     }
-
     .rodata : {
         *(.rodata .rodata.*)
+        *(.srodata .srodata.*)
     }
-
     .data : {
         *(.data .data.*)
+        *(.sdata .sdata.*)
     }
-
     .bss : {
+        start_bss = .;
         *(.bss .bss.*)
+        *(.sbss .sbss.*)
+        end_bss = .;
+    }
+    /DISCARD/ : {
+        *(.eh_frame)
+        *(.debug*)
     }
 }

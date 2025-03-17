@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 log = { version = "0.4"}
+loongArch64 = "0.2.4"
+lazy_static = { version = "1.4.0", features = ["spin_no_std"] }

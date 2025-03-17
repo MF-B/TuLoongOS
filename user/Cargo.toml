@@ -4,3 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+loongArch64 = {version = "0.2.4"}
+
+[features]

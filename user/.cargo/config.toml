@@ -4,8 +4,4 @@ target = "loongarch64-unknown-none"
 [target.loongarch64-unknown-none]
 rustflags = [
     "-C", "link-arg=-Tsrc/linker.ld",
-    "-Cforce-frame-pointers=yes"
 ]
-
-[profile.release]
-debug = true
