@@ -7,4 +7,6 @@
 ## 解决方法
 1. 在`os/.cargo/config.toml`中添加`"-C", "target-feature=-lsx,-lasx"`
 2. 使用被注释掉的print宏
-3. 使用qemu-9.2.1版本
+3. ~~使用qemu-9.2.1版本~~
+   - qemu-9.2.1也无法执行vldi等指令
+   - 可以通过控制rust工具链版本来使编译器不生成向量指令,尝试将rust-toolchain.toml的内容修改为channel = "nightly-2025-01-18"
