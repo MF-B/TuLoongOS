@@ -49,10 +49,10 @@ struct AppManager {
 
 impl AppManager {
     pub fn print_app_info(&self) {
-        info!("[kernel] num_app = {}", self.num_app);
+        info!("num_app = {}", self.num_app);
         for i in 0..self.num_app {
             info!(
-                "[kernel] app_{} [{:#x}, {:#x})",
+                "app_{} [{:#x}, {:#x})",
                 i,
                 self.app_start[i],
                 self.app_start[i + 1]
@@ -74,7 +74,7 @@ impl AppManager {
             terminate();
         }
         // 输出log信息
-        info!("[kernel] Loading app_{}", app_id);
+        info!("Loading app_{}", app_id);
         // 清空运行app的内存区域(填0)
         unsafe {
             core::slice::from_raw_parts_mut(APP_BASE_ADDRESS as *mut u8, APP_SIZE_LIMIT).fill(0);   

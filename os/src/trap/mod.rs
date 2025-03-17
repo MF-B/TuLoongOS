@@ -38,11 +38,11 @@ fn trap_handler(tf: &mut TrapFrame) -> &mut TrapFrame {
             tf.regs.a0 = syscall(tf, tf.regs.a7) as usize;
         }
         Trap::Exception(Exception::StorePageFault) => {
-            error!("[kernel] StorePageFault in application, kernel killed it.");
+            error!("StorePageFault in application, kernel killed it.");
             run_next_app();
         }
         Trap::Exception(Exception::InstructionPrivilegeIllegal) => {
-            error!("[kernel] InstructionPrivilegeIllegal in application, kernel killed it.");
+            error!("InstructionPrivilegeIllegal in application, kernel killed it.");
             run_next_app();
         }
         _ => {

@@ -18,7 +18,7 @@ __alltraps:
 
     # 将TrapContext保存在kernel stack
     # 分配空间
-    addi.d $sp, $sp, -33*8
+    addi.d $sp, $sp, -34*8
 
     # 保存通用寄存器
     st.d $r1, $sp, 1*8
@@ -39,6 +39,8 @@ __alltraps:
 
     # 可以随便使用 t0/t1/t2 寄存器了, 因为原值已存入kernel stack
     # 将era保存到t1(龙芯架构发生例外(中断)时,crmd会自动保存到prmd,故不需要保存crmd)
+    # csrrd $t0, 0x1
+    # st.d $t0, $sp, 32*8
     csrrd $t1, 0x6
     st.d $t1, $sp, 32*8
 
@@ -64,10 +66,13 @@ __restore:
 
     # now sp->kernel stack(after allocated), sscratch->user stack
     # restore era
+    
     ld.d $t1, $sp, 32*8
     ld.d $t2, $sp, 3*8
+    # ld.d $t0, $sp, 32*8
     csrwr $t1, 0x6
     csrwr $t2, 0x30
+    # csrwr $t0, 0x1
 
     # restore general-purpuse registers except sp/tp
     ld.d $r1, $sp, 1*8

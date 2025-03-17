@@ -49,6 +49,7 @@ impl TrapFrame {
     pub fn app_init_context(entry: usize, sp: usize) -> Self {
         let mut regs= GeneralRegisters::default();
         regs.sp = sp;
+        
         prmd::set_pie(true);
         prmd::set_pplv(CpuMode::Ring3);
         Self {
