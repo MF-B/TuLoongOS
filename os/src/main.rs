@@ -14,6 +14,8 @@ mod syscall;
 mod sync;
 mod trap;
 pub mod batch;
+mod loader;
+mod config;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
@@ -30,7 +32,7 @@ pub fn rust_main() -> ! {
     trap::init();
 
     batch::init();
-
+    
     batch::run_next_app();
 
     // 关机
