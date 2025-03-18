@@ -29,12 +29,6 @@ fn trap_handler(tf: &mut TrapFrame) -> &mut TrapFrame {
 
     match estat.cause() {
         Trap::Exception(Exception::Syscall) => {
-            debug!(
-                "trap {:?} @ {:#x}:\n",
-                estat.cause(),
-                tf.era,
-                //tf
-            );
             tf.era += 4;
             tf.regs.a0 = syscall(tf, tf.regs.a7) as usize;
         }
