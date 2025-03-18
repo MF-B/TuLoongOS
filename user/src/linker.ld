@@ -1,11 +1,10 @@
 OUTPUT_ARCH(loongarch)
 ENTRY(_start)
 BASE_ADDRESS = 0x80400000;
-STEP = 0x20000;
 
 SECTIONS
 {
-    . = BASE_ADDRESS + STEP*4;
+    . = BASE_ADDRESS;
     .text : {
         *(.text.entry)
         *(.text .text.*)

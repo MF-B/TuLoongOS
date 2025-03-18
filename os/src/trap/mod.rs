@@ -41,6 +41,14 @@ fn trap_handler(tf: &mut TrapFrame) -> &mut TrapFrame {
             error!("StorePageFault in application, kernel killed it.");
             run_next_app();
         }
+        Trap::Exception(Exception::MemoryAccessAddressError) => {
+            error!("MemoryAccessAddressError in application, kernel killed it.");
+            run_next_app();
+        }
+        Trap::Exception(Exception::InstructionNotExist) => {
+            error!("InstructionNotExist in application, kernel killed it.");
+            run_next_app();
+        }
         Trap::Exception(Exception::InstructionPrivilegeIllegal) => {
             error!("InstructionPrivilegeIllegal in application, kernel killed it.");
             run_next_app();
