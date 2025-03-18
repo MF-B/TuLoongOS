@@ -1,3 +1,5 @@
+use core::fmt;
+
 use loongArch64::register::{prmd::{self, Prmd}, CpuMode};
 
 #[allow(missing_docs)]
@@ -44,6 +46,16 @@ pub struct TrapFrame {
     pub regs: GeneralRegisters,
     pub era: usize,
     pub prmd: Prmd,
+}
+
+impl fmt::Debug for TrapFrame {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TrapFrame")
+            .field("regs", &self.regs)
+            .field("era", &self.era)
+            .field("prmd", &format_args!("{:#x}", unsafe { core::mem::transmute::<Prmd, usize>(self.prmd) }))
+            .finish()
+    }
 }
 
 impl TrapFrame {

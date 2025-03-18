@@ -50,15 +50,16 @@ fn trap_handler(tf: &mut TrapFrame) -> &mut TrapFrame {
             );
             run_next_app();
         }
-        Trap::Exception(Exception::InstructionPrivilegeIllegal) => {
-            error!("InstructionPrivilegeIllegal in application, kernel killed it.");
-            run_next_app();
-        }
+        // Trap::Exception(Exception::InstructionPrivilegeIllegal) => {
+        //     error!("InstructionPrivilegeIllegal in application, kernel killed it.");
+        //     run_next_app();
+        // }
         _ => {
             panic!(
-                "Unhandled trap {:?} @ {:#x}:\n",
+                "Unhandled trap {:?} @ {:#x}:\n{:#x?}",
                 estat.cause(),
                 tf.era,
+                tf
             );
         }
     }
