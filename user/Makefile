@@ -10,9 +10,9 @@ OBJDUMP := rust-objdump --arch-name=loongarch64
 OBJCOPY := rust-objcopy --binary-architecture=loongarch64
 
 elf:
-	@cargo build -Z unstable-options --release
+	@cargo build --bin 00hello_world -Z unstable-options --release
 
-binary: elf
+binary: 
 	@$(foreach elf, $(ELFS), $(OBJCOPY) $(elf) --strip-all -O binary $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.bin, $(elf));)
 
 build: binary
