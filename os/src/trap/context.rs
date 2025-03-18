@@ -1,4 +1,4 @@
-use loongArch64::register::{prmd, CpuMode};
+use loongArch64::register::{prmd::{self, Prmd}, CpuMode};
 
 #[allow(missing_docs)]
 #[repr(C)]
@@ -39,22 +39,25 @@ pub struct GeneralRegisters {
 }
 
 #[repr(C)]
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct TrapFrame {
     pub regs: GeneralRegisters,
-    pub era: usize
+    pub era: usize,
+    pub prmd: Prmd,
 }
 
 impl TrapFrame {
     pub fn app_init_context(entry: usize, sp: usize) -> Self {
         let mut regs= GeneralRegisters::default();
         regs.sp = sp;
-        
         prmd::set_pie(true);
         prmd::set_pplv(CpuMode::Ring3);
+        prmd::set_pwe(false);
+        let prmd = prmd::read();
         Self {
             regs,
-            era: entry
+            era: entry,
+            prmd,
         }
     }
 }

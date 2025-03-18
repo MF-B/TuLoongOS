@@ -8,7 +8,7 @@ extern crate user;
 fn main() -> i32 {
     println!("Into Test store_fault, we will insert an invalid store operation...");
     unsafe {
-        (0 as *mut u8).write_volatile(0);
+        (0xb0000000 as *mut u8).write_volatile(0);
     }
     0
 }

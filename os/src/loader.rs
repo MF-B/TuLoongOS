@@ -1,28 +1,33 @@
+use core::arch::asm;
+
 use crate::config::{APP_BASE_ADDRESS, APP_SIZE_LIMIT};
 
 pub fn load_app() {
+    unsafe extern "C" {
+        fn _num_app();
+    }
+    let num_app_ptr = _num_app as usize as *const usize;
+    let num_app = get_num_app();
+    // 获取各个app的起始地址数组并返回给APP_MAMAGER
+    let app_start = unsafe {
+        core::slice::from_raw_parts(num_app_ptr.add(1), num_app + 1)
+    };
+    // load apps
+    for i in 0..num_app {
+        let base_i = get_base_i(i);
+        // clear region
+        (base_i..base_i + APP_SIZE_LIMIT)
+            .for_each(|addr| unsafe { (addr as *mut u8).write_volatile(0) });
+        // load app from data section to memory
+        let src = unsafe {
+            core::slice::from_raw_parts(app_start[i] as *const u8, app_start[i + 1] - app_start[i])
+        };
+        let dst = unsafe { core::slice::from_raw_parts_mut(base_i as *mut u8, src.len()) };
+        dst.copy_from_slice(src);
+    }
     unsafe {
-        unsafe extern "C" {
-            fn _num_app();
-        }
-        let num_app_ptr = _num_app as usize as *const usize;
-        let num_app = get_num_app();
-        // 获取各个app的起始地址数组并返回给APP_MAMAGER
-        let app_start =
-            core::slice::from_raw_parts(num_app_ptr.add(1) as *const usize, num_app + 1);
-        for i in 0..num_app {
-            core::slice::from_raw_parts_mut(get_base_i(i) as *mut u8, APP_SIZE_LIMIT).fill(0);
-            // 复制app的代码到运行app的内存区域
-            let app_src = core::slice::from_raw_parts(
-                app_start[i] as *const u8,
-                app_start[i + 1] - app_start[i],
-            );
-            let app_dst =
-                core::slice::from_raw_parts_mut(get_base_i(i) as *mut u8, app_src.len());
-            app_dst.copy_from_slice(app_src);
-            // memory fence about fetching the instruction memory
-            // asm!("dbar 0");
-        }
+        asm!("dbar 0"); // 内存屏障
+        asm!("ibar 0"); // 指令缓存刷新
     }
 }
 
@@ -47,6 +52,6 @@ pub fn get_app_start() -> &'static [usize] {
     let num_app_ptr = _num_app as usize as *const usize;
     let num_app = get_num_app();
     let app_start =
-    unsafe { core::slice::from_raw_parts(num_app_ptr.add(1) as *const usize, num_app + 1) };
+        unsafe { core::slice::from_raw_parts(num_app_ptr.add(1) as *const usize, num_app + 1) };
     app_start
 }

@@ -35,7 +35,7 @@ clean-user:
 	@cd $(USER_DIR) && make clean || true
 
 # 清理项目
-clean:
+clean: clean-user
 	cargo clean
 
 .PHONY: all build run debug clean
