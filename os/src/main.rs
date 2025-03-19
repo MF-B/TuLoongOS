@@ -16,6 +16,7 @@ mod trap;
 pub mod batch;
 mod loader;
 mod config;
+mod task;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
