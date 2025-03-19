@@ -2,8 +2,8 @@ pub mod context;
 use core::arch::global_asm;
 
 pub use context::TrapFrame;
-use crate::batch::run_next_app;
 use crate::syscall::syscall;
+use crate::task::exit_current_and_run_next;
 use loongArch64::register::estat::{self, Exception, Trap};
 use loongArch64::register::{crmd, eentry, MemoryAccessType};
 use log::*;
@@ -34,25 +34,25 @@ fn trap_handler(tf: &mut TrapFrame) -> &mut TrapFrame {
         }
         Trap::Exception(Exception::StorePageFault) => {
             error!("StorePageFault in application, kernel killed it.");
-            run_next_app();
+            exit_current_and_run_next();
         }
         Trap::Exception(Exception::MemoryAccessAddressError) => {
             error!("MemoryAccessAddressError in application, kernel killed it.");
-            run_next_app();
+            exit_current_and_run_next();
         }
         Trap::Exception(Exception::InstructionNotExist) => {
             error!("InstructionNotExist in application, kernel killed it.");
             debug!(
-                "trap {:?} @ {:#x}:\n",
+                "trap {:?} @ {:#x}:\n{:#x?}",
                 estat.cause(),
                 tf.era,
-                //tf
+                tf
             );
-            run_next_app();
+            exit_current_and_run_next();
         }
         Trap::Exception(Exception::InstructionPrivilegeIllegal) => {
             error!("InstructionPrivilegeIllegal in application, kernel killed it.");
-            run_next_app();
+            exit_current_and_run_next();
         }
         _ => {
             panic!(

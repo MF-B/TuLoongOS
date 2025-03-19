@@ -1,10 +1,10 @@
 .altmacro
 .macro SAVE_S n
-    st.d $s\n, $a0, \n*8
+    st.d $s\n, $a0, (\n+2)*8
 .endm
 
 .macro LOAD_S n
-    ld.d $s\n, $a1, \n*8
+    ld.d $s\n, $a1, (\n+2)*8
 .endm
 
     .section .text
@@ -21,12 +21,12 @@ __switch:
     .endr
     
     # 将下一个任务的上下文切换到当前位置
-    ld.d $sp, $a1, 1*8
+    
     ld.d $ra, $a1, 0*8
     .set n,0
     .rept 10
         LOAD_S %n
         .set n, n+1
     .endr
-
+    ld.d $sp, $a1, 1*8
     ret

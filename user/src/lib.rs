@@ -11,10 +11,10 @@ pub use console::*;
 
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text.entry")]
-pub extern "C" fn _start() -> ! {
+pub extern "C" fn _start() {
     clear_bss();
     exit(main());
-    panic!("unreachable after sys_exit!");
+    //panic!("unreachable after sys_exit!");
 }
 
 #[linkage = "weak"]

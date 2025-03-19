@@ -1,6 +1,43 @@
 use core::arch::asm;
 
-use crate::config::{APP_BASE_ADDRESS, APP_SIZE_LIMIT};
+use crate::config::{APP_BASE_ADDRESS, APP_SIZE_LIMIT, KERNEL_STACK_SIZE, MAX_APP_NUM, USER_STACK_SIZE};
+use crate::trap::TrapFrame;
+
+#[derive(Copy,Clone)]
+pub struct KernelStack{
+    data: [usize;KERNEL_STACK_SIZE]
+}
+
+#[derive(Copy,Clone)]
+struct UserStack{
+    data: [usize;USER_STACK_SIZE]
+}
+
+impl KernelStack{
+    fn push_context(&self, cx: TrapFrame)-> usize{
+        let cx_ptr = (self.get_sp() - core::mem::size_of::<TrapFrame>()) as *mut TrapFrame;
+        unsafe { *cx_ptr = cx };
+        cx_ptr as usize
+        //unsafe { cx_ptr.as_mut().unwrap() }
+    }
+    fn get_sp(&self) -> usize{
+        self.data.as_ptr() as usize + KERNEL_STACK_SIZE
+    }
+}
+impl UserStack {
+    fn get_sp(&self) -> usize{
+        self.data.as_ptr() as usize + USER_STACK_SIZE
+    }
+}
+
+pub static KERNEL_STACK: [KernelStack;MAX_APP_NUM] = [KernelStack{data: [0;KERNEL_STACK_SIZE]};MAX_APP_NUM];
+static USER_STACK: [UserStack;MAX_APP_NUM] = [UserStack{data: [0;USER_STACK_SIZE]};MAX_APP_NUM];
+
+pub fn init_app_cx(app_id: usize) -> usize{
+    KERNEL_STACK[app_id].push_context(
+        TrapFrame::app_init_context(get_base_i(app_id), USER_STACK[app_id].get_sp()),
+    )
+}
 
 pub fn load_app() {
     unsafe extern "C" {
@@ -26,7 +63,6 @@ pub fn load_app() {
         dst.copy_from_slice(src);
     }
     unsafe {
-        asm!("dbar 0"); // 内存屏障
         asm!("ibar 0"); // 指令缓存刷新
     }
 }
@@ -45,13 +81,13 @@ pub fn get_num_app() -> usize {
     }
 }
 
-pub fn get_app_start() -> &'static [usize] {
-    unsafe extern "C" {
-        fn _num_app();
-    }
-    let num_app_ptr = _num_app as usize as *const usize;
-    let num_app = get_num_app();
-    let app_start =
-        unsafe { core::slice::from_raw_parts(num_app_ptr.add(1) as *const usize, num_app + 1) };
-    app_start
-}
+// pub fn get_app_start() -> &'static [usize] {
+//     unsafe extern "C" {
+//         fn _num_app();
+//     }
+//     let num_app_ptr = _num_app as usize as *const usize;
+//     let num_app = get_num_app();
+//     let app_start =
+//         unsafe { core::slice::from_raw_parts(num_app_ptr.add(1) as *const usize, num_app + 1) };
+//     app_start
+// }

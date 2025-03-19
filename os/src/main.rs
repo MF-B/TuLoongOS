@@ -13,7 +13,6 @@ mod logo;
 mod syscall;
 mod sync;
 mod trap;
-pub mod batch;
 mod loader;
 mod config;
 mod task;
@@ -28,16 +27,12 @@ pub fn rust_main() -> ! {
     logo::print_logo();
     // 初始化日志系统
     logging::init();
-    info!("批处理系统启动中...");
+    info!("协作式调度系统启动中...");
 
     trap::init();
-
-    batch::init();
-    
-    batch::run_next_app();
-
+    task::init();
     // 关机
-    //misc::terminate();
+    misc::terminate();
 }
 
 fn clear_bss() {

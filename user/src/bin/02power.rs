@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+use user::yield_;
+
 #[macro_use]
 extern crate user;
 
@@ -20,6 +22,7 @@ fn main() -> i32 {
         pow[index] = last * P % MOD;
         if i % 10000 == 0 {
             println!("{}^{}={}(MOD {})", P, i, pow[index], MOD);
+            yield_();
         }
     }
     

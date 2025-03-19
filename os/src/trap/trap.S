@@ -62,7 +62,7 @@ __restore:
     # csrrd $sp, 0x30
 
     # 将当前指针指向cx
-    move $sp, $a0
+    # move $sp, $a0
 
     # now sp->kernel stack(after allocated), sscratch->user stack
     # restore era
