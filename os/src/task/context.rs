@@ -7,22 +7,22 @@ pub struct TaskContext {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum TaskState {
+pub enum TaskStatus {
     UnInit,  // 未初始化
     Ready,   // 准备运行
     Running, // 正在运行
     Exited,  // 已退出
 }
-impl Default for TaskState {
+impl Default for TaskStatus {
     fn default() -> Self {
-        TaskState::UnInit
+        TaskStatus::UnInit
     }
 }
 
 #[derive(Default, Clone, Copy)]
 pub struct TaskControlBlock {
     pub context: TaskContext,
-    pub state: TaskState,
+    pub status: TaskStatus,
 }
 
 impl TaskContext {
