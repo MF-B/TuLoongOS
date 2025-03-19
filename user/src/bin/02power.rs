@@ -1,9 +1,9 @@
 #![no_std]
 #![no_main]
 
+use log::info;
 use user::yield_;
 
-#[macro_use]
 extern crate user;
 
 const SIZE: usize = 10;
@@ -21,11 +21,11 @@ fn main() -> i32 {
         index = (index + 1) % SIZE;
         pow[index] = last * P % MOD;
         if i % 10000 == 0 {
-            println!("{}^{}={}(MOD {})", P, i, pow[index], MOD);
+            info!("{}^{}={}(MOD {})", P, i, pow[index], MOD);
             yield_();
         }
     }
     
-    println!("Test power OK!");
+    info!("Test power OK!");
     0
 }

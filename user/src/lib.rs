@@ -5,6 +5,7 @@
 pub mod console;
 mod syscall;  // 确保有一个 syscall.rs 文件
 mod lang_items;
+mod logging;
 
 pub use console::*;
 
@@ -13,6 +14,7 @@ pub use console::*;
 #[unsafe(link_section = ".text.entry")]
 pub extern "C" fn _start() {
     clear_bss();
+    logging::init();
     exit(main());
     //panic!("unreachable after sys_exit!");
 }

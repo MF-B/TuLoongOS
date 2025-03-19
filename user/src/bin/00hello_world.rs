@@ -1,15 +1,15 @@
 #![no_std]
 #![no_main]
 
+use log::info;
 use user::yield_;
 
-#[macro_use]
 extern crate user;
 
 #[unsafe(no_mangle)]
 fn main() -> i32 {
-    println!("Hello, world!");
+    info!("Hello, world!");
     yield_();
-    println!("Hello, world!");
+    info!("Hello, world!");
     0
 }
