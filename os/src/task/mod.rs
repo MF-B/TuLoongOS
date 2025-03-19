@@ -2,11 +2,11 @@
 use lazy_static::*;
 
 use context::{TaskContext, TaskControlBlock, TaskState};
-use log::info;
+use log::{info, trace};
 use switch::__switch;
 
 use crate::{
-    config::MAX_APP_NUM, loader::{get_num_app, init_app_cx, load_app}, misc::terminate, sync::UPSafeCell
+    config::MAX_APP_NUM, loader::{get_num_app, init_app_cx}, misc::terminate, sync::UPSafeCell
 };
 
 mod context;
@@ -59,7 +59,6 @@ impl TaskManager {
     }
 }
 pub fn init() {
-    load_app();
     TASK_MANAGER.run_first_task();
 }
 
@@ -108,7 +107,7 @@ fn switch_to_next(){
         info!("All Applications are done!");
         terminate();
     }
-    info!("switch from {} to {}", current_task, next);
+    trace!("switch from {} to {}", current_task, next);
     let current_task_cx_ptr = &mut inner.tasks[current_task].context as *mut TaskContext;
     let next_task_cx_ptr = &inner.tasks[next].context as *const TaskContext;
     inner.current_task = next;

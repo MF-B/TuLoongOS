@@ -64,7 +64,6 @@ impl TrapFrame {
         regs.sp = sp;
         prmd::set_pie(true);
         prmd::set_pplv(CpuMode::Ring3);
-        prmd::set_pwe(false);
         let prmd = prmd::read();
         Self {
             regs,

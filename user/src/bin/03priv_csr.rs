@@ -3,13 +3,13 @@
 
 extern crate user;
 
-use log::warn;
 use loongArch64::register::{crmd, CpuMode};
+use user::println;
 
 #[unsafe(no_mangle)]
 fn main() -> i32 {
-    warn!("Try to access privileged CSR in U Mode");
-    warn!("Kernel should kill this application!");
+    println!("Try to access privileged CSR in U Mode");
+    println!("Kernel should kill this application!");
     crmd::set_plv(CpuMode::Ring0);
     0
 }

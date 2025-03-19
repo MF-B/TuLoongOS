@@ -11,7 +11,7 @@ pub fn sys_exit(xstate: i32) -> ! {
 }
 
 pub fn sys_yield() -> isize {
-    info!("Application yield");
+    trace!("Application yield");
     suspend_current_and_run_next();
     0
 }
