@@ -10,6 +10,11 @@ pub const KERNEL_HEAP_SIZE: usize = 0x200000;
 
 // 打印硬件的相关信息
 pub fn print_machine_info() {
+    let euen = euen::read();
+    info!("基础浮点指令: {:?}", euen.fpe());
+    info!("128位向量指令: {:?}", euen.sxe());
+    info!("256位向量指令: {:?}", euen.asxe());
+
     info!("PALEN: {}", get_palen()); //支持的物理地址范围
     info!("VALEN: {}", get_valen()); //支持的虚拟地址范围
     info!("Support MMU-Page :{}", get_mmu_support_page());
