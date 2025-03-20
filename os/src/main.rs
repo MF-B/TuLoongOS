@@ -5,7 +5,7 @@
 use core::arch::global_asm;
 use config::print_machine_info;
 use log::*;
-use mm::{heap_test, init_heap};
+use mm::{heap_test, init_heap, set_mmu};
 
 #[macro_use]
 mod console;
@@ -55,9 +55,8 @@ pub fn rust_main() -> ! {
         safe fn boot_stack_lower_bound(); // stack lower bound
         safe fn boot_stack_top(); // stack top
     }
-
-
     clear_bss();
+    set_mmu();
     logo::print_logo();
     // 初始化日志系统
     logging::init();
