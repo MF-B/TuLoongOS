@@ -1,5 +1,7 @@
 use core::arch::asm;
 
+use log::info;
+
 use crate::config::{APP_BASE_ADDRESS, APP_SIZE_LIMIT, KERNEL_STACK_SIZE, MAX_APP_NUM, USER_STACK_SIZE};
 use crate::trap::TrapFrame;
 
@@ -59,6 +61,7 @@ pub fn load_app() {
         let src = unsafe {
             core::slice::from_raw_parts(app_start[i] as *const u8, app_start[i + 1] - app_start[i])
         };
+        info!("load app{} from {:#x} to {:#x}", i, app_start[i], base_i);
         let dst = unsafe { core::slice::from_raw_parts_mut(base_i as *mut u8, src.len()) };
         dst.copy_from_slice(src);
     }

@@ -1,6 +1,6 @@
 import os
 
-base_address = 0x90000000
+base_address = 0x00800000
 step = 0x20000
 linker = 'src/linker.ld'
 

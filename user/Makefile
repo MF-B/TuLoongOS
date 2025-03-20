@@ -12,7 +12,7 @@ OBJCOPY := rust-objcopy --binary-architecture=loongarch64
 # elf:
 # 	@cargo build --bin 00hello_world -Z unstable-options --release
 elf:
-	python3 build.py
+	@python3 build.py
 
 binary: elf
 	@$(foreach elf, $(ELFS), $(OBJCOPY) $(elf) --strip-all -O binary $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.bin, $(elf));)

@@ -7,9 +7,21 @@ extern crate user;
 
 #[unsafe(no_mangle)]
 fn main() -> i32 {
-    println!("Into Test store_fault, we will insert an invalid store operation...");
+    println!("Into Test store_fault, we will insert invalid store operations to a range...");
+    
+    // 定义起始地址和范围大小
+    let start_addr: usize = 0xf0000000;
+    let range_size: usize = 1; // 设置要写入的字节数
+    
+    println!("Writing zeros to memory range: 0x{:x} - 0x{:x}", start_addr, start_addr + range_size - 1);
+    
     unsafe {
-        (0xb0000000 as *mut u8).write_volatile(0);
+        // 循环将一个地址范围内的每个字节都设置为0
+        for offset in 0..range_size {
+            ((start_addr + offset) as *mut u8).write_volatile(0);
+        }
     }
+    
+    println!("If you see this, memory write didn't cause fault as expected");
     0
 }

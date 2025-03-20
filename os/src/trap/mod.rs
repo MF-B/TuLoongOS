@@ -57,6 +57,12 @@ fn trap_handler(tf: &mut TrapFrame) -> &mut TrapFrame {
         Trap::Exception(Exception::Syscall) => {
             tf.era += 4;
             tf.regs.a0 = syscall(tf, tf.regs.a7) as usize;
+            debug!(
+                "trap {:?} @ {:#x}:\n{:#x?}",
+                estat.cause(),
+                tf.era,
+                tf
+            );
         }
         Trap::Exception(Exception::StorePageFault) => {
             error!("StorePageFault in application, kernel killed it.");
