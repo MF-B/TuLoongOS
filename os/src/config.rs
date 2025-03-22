@@ -1,12 +1,33 @@
 use log::info;
 use loongArch64::{cpu::*, register::*};
 
+
+// Task使用的常量
 pub const USER_STACK_SIZE: usize = 4096 * 2;
 pub const KERNEL_STACK_SIZE: usize = 4096 * 2;
 pub const MAX_APP_NUM: usize = 16;
 pub const APP_BASE_ADDRESS: usize = 0x00800000;
 pub const APP_SIZE_LIMIT: usize = 0x20000;
 pub const KERNEL_HEAP_SIZE: usize = 0x200000;
+
+// 地址空间
+pub const MEMORY_LOW_END: usize = 0x0fffffff;
+pub const MEMORY_HIGH_START: usize = 0x80000000;
+pub const MEMORY_HIGH_END: usize = 0xafffffff;
+
+// TLB使用的常量
+pub const PALEN: usize = 48;
+pub const PPN_WIDTH: usize = PALEN-12;
+pub const VALEN: usize = 48;
+pub const VVPN_WIDTH: usize = VALEN-13;
+pub const PAGE_SIZE: usize = 4096 * 4;
+pub const PAGE_SIZE_BITS: usize = 14;
+pub const PTE_NUMS: usize = PAGE_SIZE / 8;
+pub const PTE_BITS: usize = PAGE_SIZE_BITS - 3;
+pub const VPTE_FLAGS_WIDTH: usize = 18;
+pub const PPTE_FLAGS_WIDTH: usize = 9;
+
+
 
 // 打印硬件的相关信息
 pub fn print_machine_info() {
