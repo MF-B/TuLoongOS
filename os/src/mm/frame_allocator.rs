@@ -1,8 +1,8 @@
 use alloc::vec::Vec;
-use lazy_static::lazy_static;
-use crate::{config::{MEMORY_HIGH_END, MEMORY_HIGH_START, MEMORY_LOW_END}, mm::address::PhysAddr, sync::UPSafeCell};
-
-use super::address::PhysPageNum;
+use crate::sync::UPSafeCell;
+use crate::config::{MEMORY_HIGH_END, MEMORY_HIGH_START};
+use lazy_static::*;
+use super::address::{PhysAddr, PhysPageNum};
 
 trait FrameAllocator {
     fn new() -> Self;
@@ -11,49 +11,57 @@ trait FrameAllocator {
 }
 
 pub struct StackFrameAllocator {
-    current: usize, //空闲内存的起始物理页号
-    end: usize,     //空闲内存的结束物理页号
+    current: usize,  //空闲内存的起始物理页号
+    end: usize,      //空闲内存的结束物理页号
     recycled: Vec<usize>,
 }
 
 impl FrameAllocator for StackFrameAllocator {
     fn new() -> Self {
-        Self {
+        StackFrameAllocator {
             current: 0,
             end: 0,
             recycled: Vec::new(),
         }
     }
     fn alloc(&mut self) -> Option<PhysPageNum> {
-        if let Some(ppn) = self.recycled.pop() {
-            Some(ppn.into())
-        } else {
-            if self.current == self.end {
-                None
-            } else {
-                self.current += 1;
-                Some((self.current - 1).into())
-            }
+        // current实际记录了管理器分配过的最大页号+1
+        if let Some(addr) = self.recycled.pop() {
+            return Some(PhysPageNum(addr));
         }
+        if self.current < self.end {
+            let ppn = PhysPageNum(self.current);
+            self.current += 1;
+            return Some(ppn);
+        }
+        None
     }
     fn dealloc(&mut self, ppn: PhysPageNum) {
-        let ppn = ppn.0;
-        // validity check
-        if ppn >= self.current || self.recycled.iter().find(|&v| *v == ppn).is_some() {
-            panic!("Frame ppn={:#x} has not been allocated!", ppn);
+        // 所以free的时候需要检查是否在范围内
+        if ppn.0 >= self.current || self.recycled.contains(&ppn.0) {
+            panic!("Frame ppn={:#x} has not been allocated!", ppn.0);
         }
-        // recycle
-        self.recycled.push(ppn);
+        self.recycled.push(ppn.0);
     }
 }
 
 impl StackFrameAllocator {
-    pub fn init(&mut self, l: PhysPageNum, r: PhysPageNum) {
-        self.current = l.0;
-        self.end = r.0;
+    pub fn init(&mut self, start: PhysPageNum, end: PhysPageNum) {
+        self.current = start.0;
+        self.end = end.0;
     }
 }
 
+// 管理器在内核中只需要一个,故设置成全局实例
+
+type FrameAllocatorImpl = StackFrameAllocator;
+lazy_static! {
+    pub static ref FRAME_ALLOCATOR: UPSafeCell<FrameAllocatorImpl> = unsafe {
+        UPSafeCell::new(FrameAllocatorImpl::new())
+    };
+}
+
+#[derive(Debug)]
 pub struct FrameTracker {
     pub ppn: PhysPageNum,
 }
@@ -71,38 +79,40 @@ impl FrameTracker {
 
 impl Drop for FrameTracker {
     fn drop(&mut self) {
-        frame_dealloc(self.ppn);
+        frame_deallocator(self.ppn);
     }
 }
 
-
-
-
-type FrameAllocatorImpl = StackFrameAllocator;
-lazy_static! {
-    pub static ref FRAME_ALLOCATOR: UPSafeCell<FrameAllocatorImpl> = unsafe {
-        UPSafeCell::new(FrameAllocatorImpl::new())
-    };
-}
-
+// 功能函数
 pub fn init_frame_allocator() {
-    // unsafe extern "C" {
-    //     fn ekernel();
-    // }
-    FRAME_ALLOCATOR
-        .exclusive_access()
-        .init(PhysAddr::from(MEMORY_HIGH_START).ceil(), PhysAddr::from(MEMORY_HIGH_END).floor());
+    FRAME_ALLOCATOR.exclusive_access().init(
+        PhysAddr(MEMORY_HIGH_START).ceil(),
+        PhysAddr(MEMORY_HIGH_END).floor(),
+    );
 }
 
 pub fn frame_alloc() -> Option<FrameTracker> {
-    FRAME_ALLOCATOR
-        .exclusive_access()
-        .alloc()
-        .map(|ppn| FrameTracker::new(ppn))
+    FRAME_ALLOCATOR.exclusive_access().alloc().map(|ppn|FrameTracker::new(ppn))
 }
 
-fn frame_dealloc(ppn: PhysPageNum) {
-    FRAME_ALLOCATOR
-        .exclusive_access()
-        .dealloc(ppn);
+pub fn frame_deallocator(ppn: PhysPageNum) {
+    FRAME_ALLOCATOR.exclusive_access().dealloc(ppn);
+}
+
+#[allow(unused)]
+pub fn frame_allocator_test() {
+    let mut v: Vec<FrameTracker> = Vec::new();
+    for i in 0..5 {
+        let frame: FrameTracker = frame_alloc().unwrap();
+        println!("{:?}", frame);
+        v.push(frame);
+    }
+    v.clear();
+    for i in 0..5 {
+        let frame = frame_alloc().unwrap();
+        println!("{:?}", frame);
+        v.push(frame);
+    }
+    drop(v);
+    println!("frame_allocator_test passed!");
 }

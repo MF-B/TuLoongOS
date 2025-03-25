@@ -24,8 +24,9 @@ pub const PAGE_SIZE: usize = 4096 * 4;
 pub const PAGE_SIZE_BITS: usize = 14;
 pub const PTE_NUMS: usize = PAGE_SIZE / 8;
 pub const PTE_BITS: usize = PAGE_SIZE_BITS - 3;
-pub const VPTE_FLAGS_WIDTH: usize = 18;
-pub const PPTE_FLAGS_WIDTH: usize = 9;
+pub const PTE_FLAGS_WIDTH: usize = 12;
+pub const LEVEL_BITS: usize = 11;
+pub const LEVELS: usize = 3;
 
 
 
