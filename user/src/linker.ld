@@ -1,4 +1,4 @@
-BASE_ADDRESS = 0x800000;
+BASE_ADDRESS = 0x10000;
 OUTPUT_ARCH(loongarch)
 ENTRY(_start)
 
@@ -10,12 +10,14 @@ SECTIONS
         *(.text.entry)
         *(.text .text.*)
     }
+    . = ALIGN(16K);
     e_text = .;
     s_rodata = .;
     .rodata : {
         *(.rodata .rodata.*)
         *(.srodata .srodata.*)
     }
+    . = ALIGN(16K);
     e_rodata = .;
     s_data = .;
     .data : {

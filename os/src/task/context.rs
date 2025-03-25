@@ -1,3 +1,5 @@
+use crate::{loader::init_app_cx, mm::memory_set::MemorySet};
+
 #[repr(C)]
 #[derive(Default, Copy, Clone)]
 pub struct TaskContext {
@@ -19,10 +21,31 @@ impl Default for TaskStatus {
     }
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Clone)]
 pub struct TaskControlBlock {
     pub context: TaskContext,
     pub status: TaskStatus,
+    pub memory_set: MemorySet,    //新增的地址空间
+    pub task_id: usize,
+    pub base_size: usize,
+}
+
+impl TaskControlBlock {
+    pub fn new(elf_data: &[u8], app_id: usize) -> Self {
+        // memory_set with elf program headers/trampoline/trap context/user stack
+        let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);
+        let status = TaskStatus::Ready; //准备指向状态
+        let task_control_block = Self {
+            context: TaskContext::goto_restore(init_app_cx(app_id, entry_point, user_sp)),
+            status,
+            //初始化任务上下文,参数为内核栈地址，内核栈存放的是trap上下文
+            memory_set,
+            task_id: app_id,
+            base_size: user_sp,
+        };
+        // prepare TrapContext in user space
+        task_control_block
+    }
 }
 
 impl TaskContext {

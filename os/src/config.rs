@@ -14,6 +14,8 @@ pub const KERNEL_HEAP_SIZE: usize = 0x200000;
 pub const MEMORY_LOW_END: usize = 0x0fffffff;
 pub const MEMORY_HIGH_START: usize = 0x80000000;
 pub const MEMORY_HIGH_END: usize = 0xafffffff;
+pub const TRAMPOLINE: usize = MEMORY_HIGH_END - PAGE_SIZE + 1;
+pub const TRAP_CONTEXT: usize = TRAMPOLINE - PAGE_SIZE;
 
 // TLB使用的常量
 pub const PALEN: usize = 48;
@@ -28,6 +30,15 @@ pub const PTE_FLAGS_WIDTH: usize = 12;
 pub const LEVEL_BITS: usize = 11;
 pub const LEVELS: usize = 3;
 
+pub fn kernel_stack_position(app_id: usize) -> (usize, usize) {
+
+    let top = TRAMPOLINE - app_id * (KERNEL_STACK_SIZE + PAGE_SIZE);
+
+    let bottom = top - KERNEL_STACK_SIZE;
+
+    (bottom, top)
+
+}
 
 
 // 打印硬件的相关信息

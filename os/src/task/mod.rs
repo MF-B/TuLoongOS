@@ -2,15 +2,16 @@ mod context;
 mod info;
 mod switch;
 
+use alloc::vec::Vec;
 use context::{TaskContext, TaskControlBlock, TaskStatus};
 use info::TimeInfo;
 use lazy_static::*;
 use log::{info, trace};
+use loongArch64::register::{pgdh, pgdl};
 use switch::__switch;
 
 use crate::{
-    config::MAX_APP_NUM,
-    loader::{get_num_app, init_app_cx},
+    loader::{get_app_data, get_num_app},
     misc::terminate,
     sync::UPSafeCell,
 };
@@ -22,7 +23,7 @@ pub struct TaskManager {
 }
 
 struct TaskManagerInner {
-    tasks: [TaskControlBlock; MAX_APP_NUM],
+    tasks: Vec<TaskControlBlock>,
     current_task: usize,
 }
 
@@ -30,10 +31,12 @@ struct TaskManagerInner {
 lazy_static! {
     pub static ref TASK_MANAGER: TaskManager = {
         let num_app = get_num_app();
-        let mut tasks = [TaskControlBlock::default(); MAX_APP_NUM];
+        let mut tasks: Vec<TaskControlBlock> = Vec::new();
         for i in 0..num_app {
-            tasks[i].context = TaskContext::goto_restore(init_app_cx(i));
-            tasks[i].status = TaskStatus::Ready;
+            tasks.push(TaskControlBlock::new(
+                get_app_data(i),
+                i,
+            ));
         }
         TaskManager {
             num_app,
@@ -59,12 +62,16 @@ impl TaskManager {
         task0.status = TaskStatus::Running;
         let next_task_cx_ptr = &task0.context as *const TaskContext;
         let mut __unused = TaskContext::default();
+        let base = task0.memory_set.get_base().0;
         drop(inner);
 
         // 记录时间
         let mut time_info = self.time_info.exclusive_access();
         time_info.record_start_time();
         drop(time_info);
+
+        pgdl::set_base(base);
+        pgdh::set_base(base);
 
         unsafe {
             __switch(&mut __unused as *mut TaskContext, next_task_cx_ptr);

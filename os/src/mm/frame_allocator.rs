@@ -61,7 +61,7 @@ lazy_static! {
     };
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone,Default)]
 pub struct FrameTracker {
     pub ppn: PhysPageNum,
 }

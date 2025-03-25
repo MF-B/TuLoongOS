@@ -57,7 +57,6 @@ pub fn rust_main() -> ! {
         safe fn boot_stack_top(); // stack top
     }
     clear_bss();
-    set_mmu();
     logo::print_logo();
     // 初始化日志系统
     logging::init();
@@ -80,14 +79,11 @@ pub fn rust_main() -> ! {
     info!("[kernel] .bss [{:#x}, {:#x})", sbss as usize, ebss as usize);
 
     print_machine_info();
-    init_heap();
-    heap_test();
-    init_frame_allocator();
-    frame_allocator_test();
     info!("协作式调度系统启动中...");
+    mm::init();
     trap::init();
     loader::load_app();
-    trap::enable_timer_interrupt();
+    //trap::enable_timer_interrupt();
     task::init();
     // 关机
     misc::terminate();

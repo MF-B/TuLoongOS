@@ -2,7 +2,7 @@ use alloc::vec;
 use alloc::vec::*;
 use bitflags::*;
 
-use crate::config::{LEVELS, PALEN, PTE_FLAGS_WIDTH};
+use crate::config::{LEVELS, PAGE_SIZE_BITS, PALEN, PTE_FLAGS_WIDTH};
 
 use super::{address::{PhysPageNum, VirtPageNum}, frame_alloc, FrameTracker};
 
@@ -24,6 +24,7 @@ bitflags! {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct PageTableEntry {
     bits: usize,
 }
@@ -46,14 +47,24 @@ impl PageTableEntry {
     pub fn is_valid(&self) -> bool {
         (self.flags() & PTEFlags::V) != PTEFlags::empty()
     }
+    pub fn writable(&self) -> bool {
+        self.flags().contains(PTEFlags::W)
+    }
+    pub fn executable(&self) -> bool {
+        !self.flags().contains(PTEFlags::NX)
+    }
 }
 
+#[derive(Default,Clone)]
 pub struct PageTable {
     root_ppn: PhysPageNum,
     frames: Vec<FrameTracker>,
 }
 
 impl PageTable {
+    pub fn get_root_ppn(&self) -> PhysPageNum {
+        self.root_ppn
+    }
     pub fn new() -> Self {
         let frame = frame_alloc().unwrap();
         PageTable { 
@@ -107,5 +118,12 @@ impl PageTable {
             ppn = pte.ppn();
         }
         result
+    }
+    pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
+        self.find_pte(vpn).map(|pte| *pte)
+    }
+
+    pub fn token(&self) -> usize {
+        self.root_ppn.0 << PAGE_SIZE_BITS
     }
 }

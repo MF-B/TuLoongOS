@@ -17,7 +17,7 @@ elf:
 binary: elf
 	@$(foreach elf, $(ELFS), $(OBJCOPY) $(elf) --strip-all -O binary $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.bin, $(elf));)
 
-build: binary
+build: elf
 
 # 清理项目
 clean:
