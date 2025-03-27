@@ -1,6 +1,6 @@
 use core::fmt;
 
-use loongArch64::register::{prmd::{self, Prmd}, CpuMode};
+use loongArch64::register::{crmd::{self, Crmd}, prmd::{self}, CpuMode};
 
 #[allow(missing_docs)]
 #[repr(C)]
@@ -45,7 +45,7 @@ pub struct GeneralRegisters {
 pub struct TrapFrame {
     pub regs: GeneralRegisters,
     pub era: usize,
-    pub prmd: Prmd,
+    pub crmd: Crmd,
 }
 
 impl fmt::Debug for TrapFrame {
@@ -53,7 +53,7 @@ impl fmt::Debug for TrapFrame {
         f.debug_struct("TrapFrame")
             .field("regs", &self.regs)
             .field("era", &self.era)
-            .field("prmd", &format_args!("{:#x}", unsafe { core::mem::transmute::<Prmd, usize>(self.prmd) }))
+            .field("crmd", &format_args!("{:#x}", unsafe { core::mem::transmute::<Crmd, usize>(self.crmd) }))
             .finish()
     }
 }
@@ -62,13 +62,13 @@ impl TrapFrame {
     pub fn app_init_context(entry: usize, sp: usize) -> Self {
         let mut regs= GeneralRegisters::default();
         regs.sp = sp;
+        let crmd = crmd::read();
         prmd::set_pie(true);
         prmd::set_pplv(CpuMode::Ring3);
-        let prmd = prmd::read();
         Self {
             regs,
             era: entry,
-            prmd,
+            crmd,
         }
     }
 }

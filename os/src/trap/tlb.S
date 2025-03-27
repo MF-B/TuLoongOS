@@ -1,6 +1,6 @@
-    .section tlb_handler
+    .section .text
     .globl __tlb_rfill
-    .align 4
+    .align 14
 __tlb_rfill:
     csrwr $t0, 0x8B
     csrrd $t0, 0x1B
@@ -12,5 +12,5 @@ __tlb_rfill:
     #取回奇数号页表项
     tlbfill
     csrrd $t0, 0x8B
-    #jr $ra
+    # jr $ra
     ertn

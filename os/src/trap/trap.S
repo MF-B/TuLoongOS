@@ -10,7 +10,7 @@
     .section .text
     .globl __restore
     .globl __alltraps
-    .align 2
+    .align 14
 __alltraps:
     # 将sp的值更新到0x30上,同时将0x30:SAVE的值保存到sp上
     # sp->kernel stack, 0x30 -> user stack
@@ -41,7 +41,7 @@ __alltraps:
     # 将era保存到t1(龙芯架构发生例外(中断)时,crmd会自动保存到prmd,故不需要保存crmd)
     csrrd $t1, 0x6
     st.d $t1, $sp, 32*8
-    csrrd $t0, 0x1
+    csrrd $t0, 0x0
     st.d $t0, $sp, 33*8
 
     # 将user stack的sp指针存入kernel stack
@@ -58,21 +58,19 @@ __restore:
     # case1: start running app by __restore
     # case2: back to U after handling trap
     # 将内核栈指针保存到0x30
-    # csrwr $sp, 0x30
-    # csrrd $sp, 0x30
+    #csrwr $sp, 0x30
+    #csrrd $sp, 0x30
 
     # 将当前指针指向cx
-    # move $sp, $a0
+    move $sp, $a0
 
     # now sp->kernel stack(after allocated), sscratch->user stack
     # restore era
     
     ld.d $t1, $sp, 32*8
     ld.d $t2, $sp, 3*8
-    ld.d $t0, $sp, 33*8
     csrwr $t1, 0x6
     csrwr $t2, 0x30
-    csrwr $t0, 0x1
 
     # restore general-purpuse registers except sp/tp
     ld.d $r1, $sp, 1*8
