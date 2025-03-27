@@ -6,14 +6,12 @@ use alloc::vec::Vec;
 use context::{TaskContext, TaskControlBlock, TaskStatus};
 use info::TimeInfo;
 use lazy_static::*;
-use log::{info, trace};
-use loongArch64::register::{pgdh, pgdl};
+use log::info;
+use loongArch64::register::pgdl;
 use switch::__switch;
 
 use crate::{
-    loader::{get_app_data, get_num_app},
-    misc::terminate,
-    sync::UPSafeCell,
+    config::PAGE_SIZE_BITS, loader::{get_app_data, get_app_trap_cx, get_num_app}, misc::terminate, sync::UPSafeCell
 };
 
 pub struct TaskManager {
@@ -52,8 +50,19 @@ lazy_static! {
 }
 
 impl TaskManager {
+    pub fn get_current_trap_cx(&self) -> usize {
+        let inner = self.inner.exclusive_access();
+        let id = inner.tasks[inner.current_task].task_id;
+        get_app_trap_cx(id)
+    }
+
     fn get_current_task_id(&self) -> usize {
         self.inner.exclusive_access().current_task
+    }
+
+    fn get_current_token(&self) -> usize {
+        let inner = self.inner.exclusive_access();
+        inner.tasks[inner.current_task].get_user_token()
     }
 
     fn run_first_task(&self) -> ! {
@@ -62,7 +71,8 @@ impl TaskManager {
         task0.status = TaskStatus::Running;
         let next_task_cx_ptr = &task0.context as *const TaskContext;
         let mut __unused = TaskContext::default();
-        let base = task0.memory_set.get_base().0;
+        let pgd = task0.get_user_token() << PAGE_SIZE_BITS;
+        pgdl::set_base(pgd);
         drop(inner);
 
         // 记录时间
@@ -70,17 +80,15 @@ impl TaskManager {
         time_info.record_start_time();
         drop(time_info);
 
-        pgdl::set_base(base);
-        pgdh::set_base(base);
+        info!("first task's pgd base is {:#x}", pgd);
 
         unsafe {
-            __switch(&mut __unused as *mut TaskContext, next_task_cx_ptr);
+            __switch(&mut __unused as *mut TaskContext, next_task_cx_ptr, 1);
         }
         panic!("unreachable in run_first_task!");
     }
 
     fn find_next_task(&self) -> Option<usize> {
-        // get_next_app();
         let inner = self.inner.exclusive_access();
         let current_task = inner.current_task;
         ((current_task + 1)..(current_task + 1 + self.num_app))
@@ -96,10 +104,12 @@ impl TaskManager {
             inner.current_task = next;
             let current_task_cx_ptr = &mut inner.tasks[current].context as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].context as *const TaskContext;
+            let pgd = inner.tasks[next].get_user_token() << PAGE_SIZE_BITS;
+            pgdl::set_base(pgd);
             drop(inner);
             // before this, we should drop local variables that must be dropped manually
 
-            trace_switch(current, next);
+            info_switch(current, next);
 
             // 记录时间
             let mut time_info = self.time_info.exclusive_access();
@@ -107,7 +117,7 @@ impl TaskManager {
             drop(time_info);
 
             unsafe {
-                __switch(current_task_cx_ptr, next_task_cx_ptr);
+                __switch(current_task_cx_ptr, next_task_cx_ptr, next+1);
             }
             // go back to user mode
         } else {
@@ -163,8 +173,16 @@ pub fn exit_current_and_run_next() {
 
     switch_to_next();
 }
-fn trace_switch(current: usize, next: usize) {
+fn info_switch(current: usize, next: usize) {
     if current != next {
-        trace!("switch task from {} to {}", current,next);
+        info!("switch task from {} to {}", current,next);
     }
+}
+
+pub fn current_trap_cx() -> usize {
+    TASK_MANAGER.get_current_trap_cx()
+}
+
+pub fn current_user_token() -> usize {
+    TASK_MANAGER.get_current_token()
 }

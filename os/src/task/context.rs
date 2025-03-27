@@ -1,4 +1,5 @@
 use crate::{loader::init_app_cx, mm::memory_set::MemorySet};
+use crate::trap::trap_return;
 
 #[repr(C)]
 #[derive(Default, Copy, Clone)]
@@ -27,7 +28,7 @@ pub struct TaskControlBlock {
     pub status: TaskStatus,
     pub memory_set: MemorySet,    //新增的地址空间
     pub task_id: usize,
-    pub base_size: usize,
+    //pub base_size: usize,
 }
 
 impl TaskControlBlock {
@@ -41,10 +42,14 @@ impl TaskControlBlock {
             //初始化任务上下文,参数为内核栈地址，内核栈存放的是trap上下文
             memory_set,
             task_id: app_id,
-            base_size: user_sp,
+            //base_size: user_sp,
         };
         // prepare TrapContext in user space
         task_control_block
+    }
+
+    pub fn get_user_token(&self) -> usize {
+        self.memory_set.token()
     }
 }
 
@@ -54,7 +59,7 @@ impl TaskContext {
             fn __restore();
         }
         Self {
-            ra: __restore as usize,
+            ra: trap_return as usize,
             sp: kstack_ptr,
             s: [0; 10],
         }
