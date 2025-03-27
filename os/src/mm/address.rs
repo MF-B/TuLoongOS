@@ -1,4 +1,4 @@
-use crate::config::{LEVELS, LEVEL_BITS, PAGE_SIZE, PAGE_SIZE_BITS, PALEN, VALEN};
+use crate::config::{LEVEL_BITS, PAGE_SIZE, PAGE_SIZE_BITS, PALEN, VALEN};
 use alloc::fmt::Debug;
 
 use super::page_table::PageTableEntry;
@@ -27,10 +27,10 @@ impl PhysAddr {
         self.0 & (PAGE_SIZE - 1)
     }
     pub fn floor(&self) -> PhysPageNum {
-        PhysPageNum(self.0 / PAGE_SIZE)
+        PhysPageNum(self.0 >> PAGE_SIZE_BITS)
     }
     pub fn ceil(&self) -> PhysPageNum {
-        PhysPageNum((self.0 + PAGE_SIZE - 1) / PAGE_SIZE)
+        PhysPageNum((self.0 >> PAGE_SIZE_BITS) + 1)
     }
 }
 
@@ -55,11 +55,17 @@ impl From<PhysAddr> for PhysPageNum {
 }
 
 impl PhysPageNum {
-    pub fn get_bytes_array(&self) -> &'static mut [u8; PAGE_SIZE] {
-        unsafe { core::mem::transmute(self.0 << PAGE_SIZE_BITS) }
+    pub fn get_pte_array(&self) -> &'static mut [PageTableEntry] {
+        let pa: PhysAddr = self.clone().into();
+        unsafe {
+            core::slice::from_raw_parts_mut(pa.0 as *mut PageTableEntry, 1 << LEVEL_BITS)
+        }
     }
-    pub fn get_pte_array(&self) -> &'static mut [PageTableEntry; PAGE_SIZE / 8] {
-        unsafe { core::mem::transmute(self.0 << PAGE_SIZE_BITS) }
+    pub fn get_bytes_array(&self) -> &'static mut [u8] {
+        let pa: PhysAddr = self.clone().into();
+        unsafe {
+            core::slice::from_raw_parts_mut(pa.0 as *mut u8, PAGE_SIZE)
+        }
     }
     pub fn get_mut<T>(&self) -> &'static mut T {
         let pa: PhysAddr = self.clone().into();
@@ -69,7 +75,7 @@ impl PhysPageNum {
     }
 }
 
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Debug,Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtAddr(pub usize);
 
 impl From<usize> for VirtAddr {
@@ -121,11 +127,11 @@ impl From<VirtAddr> for VirtPageNum {
 }
 
 impl VirtPageNum {
-    pub fn indexes(&self) -> [usize; LEVELS] {
+    pub fn indexes(&self) -> [usize; 3] {
         let mut vpn = self.0;
-        let mut idx = [0usize; LEVELS];
-        for i in (0..LEVELS).rev() {
-            idx[i] = vpn & (2^LEVEL_BITS - 1);
+        let mut idx = [0usize; 3];
+        for i in (0..3).rev() {
+            idx[i] = vpn & ((1 << LEVEL_BITS) - 1);
             vpn >>= LEVEL_BITS;
         }
         idx

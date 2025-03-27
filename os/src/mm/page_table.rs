@@ -1,9 +1,12 @@
-use alloc::vec;
+use alloc::{fmt, vec};
 use alloc::vec::*;
+use bit_field::BitField;
 use bitflags::*;
+use log::{debug, info};
 
-use crate::config::{LEVELS, PAGE_SIZE_BITS, PALEN, PTE_FLAGS_WIDTH};
+use crate::config::{LEVELS, PAGE_SIZE_BITS, PALEN};
 
+use super::{StepByOne, VirtAddr};
 use super::{address::{PhysPageNum, VirtPageNum}, frame_alloc, FrameTracker};
 
 bitflags! {
@@ -29,29 +32,67 @@ pub struct PageTableEntry {
     bits: usize,
 }
 
+impl fmt::Debug for PageTableEntry {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "PageTableEntry RPLV:{},NX:{},NR:{},PPN:{:#x},W:{},P:{},G:{},MAT:{},PLV:{},D:{},V:{}",
+            self.bits.get_bit(63),
+            self.bits.get_bit(62),
+            self.bits.get_bit(61),
+            self.bits.get_bits(14..PALEN),
+            self.bits.get_bit(8),
+            self.bits.get_bit(7),
+            self.bits.get_bit(6),
+            self.bits.get_bits(4..=5),
+            self.bits.get_bits(2..=3),
+            self.bits.get_bit(1),
+            self.bits.get_bit(0)
+        )
+    }
+}
+
 impl PageTableEntry {
     pub fn new(ppn: PhysPageNum, flags: PTEFlags) -> Self {
-        PageTableEntry {
-            bits: ppn.0 << PTE_FLAGS_WIDTH | flags.bits,
-        }
+        let mut bits = 0usize;
+        bits.set_bits(14..PALEN, ppn.0);
+        bits = bits | flags.bits();
+        PageTableEntry {bits}
     }
     pub fn empty() -> Self {
         PageTableEntry { bits: 0 }
     }
     pub fn ppn(&self) -> PhysPageNum {
-        (self.bits >> PTE_FLAGS_WIDTH & (1usize << PALEN - 12)).into()
+        self.bits.get_bits(14..PALEN).into()
+    }
+    // 返回物理页号---页目录项
+    // 在一级和二级页目录表中目录项存放的是只有下一级的基地址
+    pub fn directory_ppn(&self) -> PhysPageNum {
+        (self.bits >> PAGE_SIZE_BITS).into()
     }
     pub fn flags(&self) -> PTEFlags {
-        PTEFlags::from_bits_truncate(self.bits)
+        //这里只需要标志位，需要把非标志位的位置清零
+        let mut bits = self.bits;
+        bits.set_bits(14..PALEN, 0);
+        PTEFlags::from_bits(bits).unwrap()
     }
     pub fn is_valid(&self) -> bool {
         (self.flags() & PTEFlags::V) != PTEFlags::empty()
     }
     pub fn writable(&self) -> bool {
-        self.flags().contains(PTEFlags::W)
+        (self.flags() & PTEFlags::W) != PTEFlags::empty()
+    }
+    pub fn readable(&self) -> bool {
+        !((self.flags() & PTEFlags::NR) != PTEFlags::empty())
     }
     pub fn executable(&self) -> bool {
-        !self.flags().contains(PTEFlags::NX)
+        !((self.flags() & PTEFlags::NX) != PTEFlags::empty())
+    }
+    pub fn set_dirty(&mut self) {
+        self.bits.set_bit(1, true);
+    }
+    pub fn is_zero(&self) -> bool {
+        self.bits == 0
     }
 }
 
@@ -62,11 +103,9 @@ pub struct PageTable {
 }
 
 impl PageTable {
-    pub fn get_root_ppn(&self) -> PhysPageNum {
-        self.root_ppn
-    }
     pub fn new() -> Self {
         let frame = frame_alloc().unwrap();
+        info!("alloc frame {:?} for root page table", frame.ppn);
         PageTable { 
             root_ppn: frame.ppn,
             frames: vec![frame],
@@ -75,6 +114,7 @@ impl PageTable {
     pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
         let pte = self.find_pte_create(vpn).unwrap();
         assert!(!pte.is_valid(), "vpn {:?} is mapped before mapping", vpn);
+        debug!("vpn:{:#x}->ppn:{:#x}", vpn.0, ppn.0);
         *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);
     }
     pub fn unmap(&mut self, vpn: VirtPageNum){
@@ -85,6 +125,7 @@ impl PageTable {
 
     fn find_pte_create(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
         let idxs = vpn.indexes();
+        //println!("find_pte_create vpn {:?} idxs {:?}", vpn, idxs);
         let mut ppn = self.root_ppn;
         let mut result: Option<&mut PageTableEntry> = None;
         for i in 0..LEVELS {
@@ -93,29 +134,32 @@ impl PageTable {
                 result = Some(pte);
                 break;
             }
-            if !pte.is_valid() {
+            if pte.is_zero() {
                 let frame = frame_alloc().unwrap();
-                *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
+                // 页目录项只保存地址
+                *pte = PageTableEntry {
+                    bits: frame.ppn.0 << PAGE_SIZE_BITS,
+                };
                 self.frames.push(frame);
             }
-            ppn = pte.ppn();
+            ppn = pte.directory_ppn();
         }
         result
     }
-    fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+    pub fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
         let mut result: Option<&mut PageTableEntry> = None;
         for i in 0..LEVELS {
             let pte = &mut ppn.get_pte_array()[idxs[i]];
+            if pte.is_zero() {
+                return None;
+            }
             if i == LEVELS-1 {
                 result = Some(pte);
                 break;
             }
-            if !pte.is_valid() {
-                return None;
-            }
-            ppn = pte.ppn();
+            ppn = pte.directory_ppn();
         }
         result
     }
@@ -124,6 +168,35 @@ impl PageTable {
     }
 
     pub fn token(&self) -> usize {
-        self.root_ppn.0 << PAGE_SIZE_BITS
+        self.root_ppn.0
     }
+    pub fn from_token(pgd: usize) -> Self {
+        Self {
+            root_ppn: PhysPageNum::from(pgd & ((1usize << 34) - 1)),
+            frames: Vec::new(),
+        }
+    }
+}
+
+
+pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
+    let page_table = PageTable::from_token(token);
+    let mut start = ptr as usize;
+    let end = start + len;
+    let mut v = Vec::new();
+    while start < end {
+        let start_va = VirtAddr::from(start);
+        let mut vpn = start_va.floor();
+        let ppn = page_table.translate(vpn).unwrap().ppn();
+        vpn.step();
+        let mut end_va: VirtAddr = vpn.into();
+        end_va = end_va.min(VirtAddr::from(end));
+        if end_va.page_offset() == 0 {
+            v.push(&mut ppn.get_bytes_array()[start_va.page_offset()..]);
+        } else {
+            v.push(&mut ppn.get_bytes_array()[start_va.page_offset()..end_va.page_offset()]);
+        }
+        start = end_va.into();
+    }
+    v
 }

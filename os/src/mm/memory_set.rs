@@ -1,23 +1,25 @@
-use core::arch::asm;
-
 use crate::{
-    config::{MEMORY_HIGH_END, MEMORY_HIGH_START, MEMORY_LOW_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE},
-    mm::address::StepByOne, sync::UPSafeCell,
+    config::{
+        PAGE_SIZE, PAGE_SIZE_BITS, USER_STACK_SIZE,
+    },
+    mm::address::StepByOne,
 };
-use lazy_static::*;
-use alloc::{collections::btree_map::BTreeMap, sync::Arc, vec::Vec};
+use alloc::{collections::btree_map::BTreeMap, vec::Vec};
 use bitflags::*;
-use loongArch64::register::{pgdh, pgdl, pwcl};
+use log::{debug, info};
+
 
 use super::{
-    address::{PhysAddr, PhysPageNum, VPNRange, VirtAddr, VirtPageNum}, frame_alloc, page_table::{PTEFlags, PageTable}, FrameTracker
+    FrameTracker,
+    address::{PhysPageNum, VPNRange, VirtAddr, VirtPageNum},
+    frame_alloc,
+    page_table::{PTEFlags, PageTable},
 };
 
-#[derive(Clone,Default)]
+#[derive(Clone, Default)]
 pub struct MapArea {
     vpn_range: VPNRange,
     data_frames: BTreeMap<VirtPageNum, FrameTracker>,
-    map_type: MapType,
     map_perm: MapPermission,
 }
 
@@ -25,38 +27,26 @@ impl MapArea {
     pub fn new(
         start_va: VirtAddr,
         end_va: VirtAddr,
-        map_type: MapType,
         map_perm: MapPermission,
     ) -> Self {
         MapArea {
             vpn_range: VPNRange::new(start_va.floor(), end_va.ceil()),
             data_frames: BTreeMap::new(),
-            map_type,
             map_perm,
         }
     }
     pub fn map_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
         let ppn: PhysPageNum;
-        match self.map_type {
-            MapType::Identical => {
-                ppn = PhysPageNum(vpn.0);
-            }
-            MapType::Framed => {
-                let frame = frame_alloc().unwrap();
-                ppn = frame.ppn;
-                self.data_frames.insert(vpn, frame);
-            }
-        }
+        let frame = frame_alloc().unwrap();
+        ppn = frame.ppn;
+        self.data_frames.insert(vpn, frame);
         let pte_flags = PTEFlags::from_bits(self.map_perm.bits().into()).unwrap();
         page_table.map(vpn, ppn, pte_flags);
     }
+
+    #[allow(unused)]
     pub fn ummap_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
-        match self.map_type {
-            MapType::Framed => {
-                self.data_frames.remove(&vpn);
-            }
-            _ => {}
-        }
+        self.data_frames.remove(&vpn);
         page_table.unmap(vpn);
     }
 
@@ -65,13 +55,14 @@ impl MapArea {
             self.map_one(page_table, vpn);
         }
     }
+
+    #[allow(unused)]
     pub fn unmap(&mut self, page_table: &mut PageTable) {
         for vpn in self.vpn_range {
             self.ummap_one(page_table, vpn);
         }
     }
     pub fn copy_data(&mut self, page_table: &PageTable, data: &[u8]) {
-        assert_eq!(self.map_type, MapType::Framed);
         let mut start: usize = 0;
         let mut current_vpn = self.vpn_range.get_start();
         let len = data.len();
@@ -92,11 +83,7 @@ impl MapArea {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Debug,Default)]
-pub enum MapType {
-    Identical,
-    #[default] Framed,
-}
+
 bitflags! {
     #[derive(Default)]
     pub struct MapPermission: usize {
@@ -116,20 +103,13 @@ bitflags! {
     }
 }
 
-#[derive(Clone,Default)]
+#[derive(Clone, Default)]
 pub struct MemorySet {
     page_table: PageTable,
     areas: Vec<MapArea>,
 }
 
-unsafe extern "C" {
-    fn strampoline();
-}
-
 impl MemorySet {
-    pub fn get_base(&self) -> PhysPageNum {
-        self.page_table.get_root_ppn()
-    }
     pub fn new_bare() -> Self {
         MemorySet {
             page_table: PageTable::new(),
@@ -146,16 +126,15 @@ impl MemorySet {
         self.areas.push(map_area);
     }
     /// Assume that no conflicts.
-
+    #[allow(unused)]
     pub fn insert_framed_area(
         &mut self,
-
         start_va: VirtAddr,
         end_va: VirtAddr,
         permission: MapPermission,
     ) {
         self.push(
-            MapArea::new(start_va, end_va, MapType::Framed, permission),
+            MapArea::new(start_va, end_va, permission),
             None,
         );
     }
@@ -165,7 +144,7 @@ impl MemorySet {
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
         let mut memory_set = Self::new_bare();
         // map trampoline
-        memory_set.map_trampoline();
+        //memory_set.map_trampoline();
         // map program headers of elf, with U flag
         let elf = xmas_elf::ElfFile::new(elf_data).unwrap();
         let elf_header = elf.header;
@@ -189,8 +168,14 @@ impl MemorySet {
                 if !ph_flags.is_execute() {
                     map_perm |= MapPermission::NX;
                 }
-                let map_area = MapArea::new(start_va, end_va, MapType::Framed, map_perm);
+                debug!(
+                    "start_vpn: {:x?}, end_vpn: {:x?}",
+                    usize::from(start_va) >> PAGE_SIZE_BITS,
+                    usize::from(end_va) >> PAGE_SIZE_BITS
+                );
+                let map_area = MapArea::new(start_va, end_va, map_perm);
                 max_end_vpn = map_area.vpn_range.get_end();
+
                 memory_set.push(
                     map_area,
                     Some(&elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize]),
@@ -207,20 +192,23 @@ impl MemorySet {
             MapArea::new(
                 user_stack_bottom.into(),
                 user_stack_top.into(),
-                MapType::Framed,
                 MapPermission::W | MapPermission::PLV0 | MapPermission::PLV1 | MapPermission::NX,
             ),
             None,
         );
-        // map TrapContext
-        memory_set.push(
-            MapArea::new(
-                TRAP_CONTEXT.into(),
-                TRAMPOLINE.into(),
-                MapType::Framed,
-                MapPermission::NX | MapPermission::W,
-            ),
-            None,
+        // // map TrapContext
+        // memory_set.push(
+        //     MapArea::new(
+        //         TRAP_CONTEXT.into(),
+        //         TRAMPOLINE.into(),
+        //         MapType::Framed,
+        //         MapPermission::NX | MapPermission::W,
+        //     ),
+        //     None,
+        // );
+        info!(
+            "user stack bottom: {:#x}, user stack top: {:#x}",
+            user_stack_bottom, user_stack_top
         );
         (
             memory_set,
@@ -229,18 +217,8 @@ impl MemorySet {
         )
     }
 
-    fn map_trampoline(&mut self) {
-
-        self.page_table.map(
-
-            VirtAddr::from(TRAMPOLINE).into(),
-
-            PhysAddr::from(strampoline as usize).into(),
-
-            PTEFlags::empty()
-
-        );
-
+    pub fn token(&self) -> usize {
+        // 这里只返回跟页表的地址
+        self.page_table.token()
     }
 }
-

@@ -5,7 +5,6 @@
 use core::arch::global_asm;
 use config::print_machine_info;
 use log::*;
-use mm::{frame_allocator_test, heap_test, init_frame_allocator, init_heap, set_mmu};
 
 #[macro_use]
 mod console;
@@ -78,11 +77,11 @@ pub fn rust_main() -> ! {
     );
     info!("[kernel] .bss [{:#x}, {:#x})", sbss as usize, ebss as usize);
 
-    print_machine_info();
+    
     info!("协作式调度系统启动中...");
     mm::init();
     trap::init();
-    loader::load_app();
+    print_machine_info();
     //trap::enable_timer_interrupt();
     task::init();
     // 关机

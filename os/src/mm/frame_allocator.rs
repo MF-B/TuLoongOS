@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 use crate::sync::UPSafeCell;
-use crate::config::{MEMORY_HIGH_END, MEMORY_HIGH_START};
+use crate::config::MEMORY_LOW_END;
 use lazy_static::*;
 use super::address::{PhysAddr, PhysPageNum};
 
@@ -85,9 +85,12 @@ impl Drop for FrameTracker {
 
 // 功能函数
 pub fn init_frame_allocator() {
+    unsafe extern "C" {
+        fn ekernel();
+    }
     FRAME_ALLOCATOR.exclusive_access().init(
-        PhysAddr(MEMORY_HIGH_START).ceil(),
-        PhysAddr(MEMORY_HIGH_END).floor(),
+        PhysAddr::from(ekernel as usize).ceil(),
+        PhysAddr::from(MEMORY_LOW_END).floor(),
     );
 }
 
