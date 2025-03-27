@@ -3,6 +3,8 @@ QEMU := qemu-system-loongarch64
 LOG ?= INFO
 USER_DIR := ../user
 
+QEMU_ARGS := -m 1G -smp 1 -machine virt -nographic -kernel $(TARGET)
+
 # 默认目标
 all: build
 
@@ -24,10 +26,16 @@ run: build-user build
 
 # 调试模式运行
 debug: build-user build
-	$(QEMU) -m 1G -smp 1 -machine virt \
-		-nographic \
-		-kernel $(TARGET) \
-		-s -S
+	@tmux new-session -d \
+		"$(QEMU) $(QEMU_ARGS) -s -S" && \
+		tmux split-window -h "~/osEnv/gdb/bin/loongarch64-unknown-linux-gnu-gdb -ex 'file target/loongarch64-unknown-none/release/os' -ex 'target remote localhost:1234'" && \
+		tmux -2 attach-session -d
+
+# debug: qemu-version-check build
+# 	@tmux new-session -d \
+# 		"qemu-system-riscv64 $(QEMU_ARGS) -s -S" && \
+# 		tmux split-window -h "~/osEnv/gdb/bin/loongarch64-unknown-linux-gnu-gdb -ex 'file $(KERNEL_ELF)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'" && \
+# 		tmux -2 attach-session -d
 
 # 清理用户程序
 clean-user:
