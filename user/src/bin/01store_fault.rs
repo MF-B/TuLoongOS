@@ -10,8 +10,8 @@ fn main() -> i32 {
     println!("Into Test store_fault, we will insert invalid store operations to a range...");
     
     // 定义起始地址和范围大小
-    let start_addr: usize = 0xf0000000;
-    let range_size: usize = 1; // 设置要写入的字节数
+    let start_addr: usize = 0x0;
+    let range_size: usize = 8; // 设置要写入的字节数
     
     println!("Writing zeros to memory range: 0x{:x} - 0x{:x}", start_addr, start_addr + range_size - 1);
     
