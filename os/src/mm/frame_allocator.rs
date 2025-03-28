@@ -50,7 +50,7 @@ impl FrameAllocator for StackFrameAllocator {
     }
     fn dealloc(&mut self, ppn: PhysPageNum) {
         // 检查页帧是否在已分配的范围内
-        let is_in_low_range = ppn.0 < self.current && ppn.0 >= 0 && ppn.0 < self.end_low;
+        let is_in_low_range = ppn.0 < self.current && ppn.0 < self.end_low;
         let is_in_high_range = ppn.0 < self.current && ppn.0 >= MEMORY_HIGH_START && ppn.0 < self.end_high;
         
         if (!is_in_low_range && !is_in_high_range) || self.recycled.contains(&ppn.0) {

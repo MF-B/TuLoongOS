@@ -102,6 +102,10 @@ fn trap_handler(tf: &mut TrapFrame) -> &mut TrapFrame {
             error!("StorePageFault in application, kernel killed it.");
             exit_current_and_run_next();
         }
+        Trap::Exception(Exception::LoadPageFault) => {
+            error!("LoadPageFault in application, kernel killed it.");
+            exit_current_and_run_next();
+        }
         Trap::Exception(Exception::MemoryAccessAddressError) => {
             error!("MemoryAccessAddressError in application, kernel killed it.");
             exit_current_and_run_next();

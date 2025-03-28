@@ -1,21 +1,28 @@
 #![no_std]
 #![no_main]
 
-use user::{get_time, println, yield_};
-
+#[macro_use]
 extern crate user;
+
+const LEN: usize = 100;
 
 #[unsafe(no_mangle)]
 fn main() -> i32 {
-    println!("Hello, world!");
-    let current_time_us = get_time();
-    let wait_for = current_time_us + 5000*1000;
-    println!("Time: {}s", get_time() / 1000 / 1000);
-    while get_time() < wait_for {
-        yield_();
+    let p = 3u64;
+    let m = 998244353u64;
+    let iter: usize = 300000;
+    let mut cur = 0usize;
+    let mut s = [0u64; LEN];
+    s[cur] = 1;
+    for i in 1..=iter {
+        let next = if cur + 1 == LEN { 0 } else { cur + 1 };
+        s[next] = s[cur] * p % m;
+        cur = next;
+        if i % 10000 == 0 {
+            println!("power_3 [{}/{}]", i, iter);
+        }
     }
-    println!("Test sleep OK!");
-    get_time();
-    println!("Time: {}s", get_time() / 1000 / 1000);
+    println!("{}^{} = {}(MOD {})", p, iter, s[cur], m);
+    println!("Test power_3 OK!");
     0
 }

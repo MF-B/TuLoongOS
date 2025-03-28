@@ -1,27 +1,28 @@
 #![no_std]
 #![no_main]
 
-use user::println;
-
+#[macro_use]
 extern crate user;
+
+const LEN: usize = 100;
 
 #[unsafe(no_mangle)]
 fn main() -> i32 {
-    println!("Into Test store_fault, we will insert invalid store operations to a range...");
-    
-    // 定义起始地址和范围大小
-    let start_addr: usize = 0x0;
-    let range_size: usize = 8; // 设置要写入的字节数
-    
-    println!("Writing zeros to memory range: 0x{:x} - 0x{:x}", start_addr, start_addr + range_size - 1);
-    
-    unsafe {
-        // 循环将一个地址范围内的每个字节都设置为0
-        for offset in 0..range_size {
-            ((start_addr + offset) as *mut u8).write_volatile(0);
+    let p = 5u64;
+    let m = 998244353u64;
+    let iter: usize = 210000;
+    let mut cur = 0usize;
+    let mut s = [0u64; LEN];
+    s[cur] = 1;
+    for i in 1..=iter {
+        let next = if cur + 1 == LEN { 0 } else { cur + 1 };
+        s[next] = s[cur] * p % m;
+        cur = next;
+        if i % 10000 == 0 {
+            println!("power_5 [{}/{}]", i, iter);
         }
     }
-    
-    println!("If you see this, memory write didn't cause fault as expected");
+    println!("{}^{} = {}(MOD {})", p, iter, s[cur], m);
+    println!("Test power_5 OK!");
     0
 }
