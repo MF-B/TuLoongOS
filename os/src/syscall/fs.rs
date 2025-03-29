@@ -1,9 +1,7 @@
-//use crate::batch::{APP_BASE_ADDRESS, APP_SIZE_LIMIT,USER_STACK};
-
-use crate::{mm::translated_byte_buffer, task::current_user_token};
+use crate::{mm::translated_byte_buffer, task::{processor::current_user_token, suspend_current_and_run_next}, uart::getc};
 
 const FD_STDOUT: usize = 1;
-//const STACK_SIZE: usize = 0x1000;
+const FD_STDIN: usize = 0;
 
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     match fd {
@@ -16,6 +14,33 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
         },
         _ => {
             -1
+        }
+    }
+}
+
+pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
+    match fd {
+        FD_STDIN => {
+            assert_eq!(len, 1, "Only support len = 1 in sys_read!");
+            let mut c: usize;
+            loop {
+                c = getc();
+                if c == 0 {
+                    suspend_current_and_run_next();
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            let ch = c as u8;
+            let mut buffers = translated_byte_buffer(current_user_token(), buf, len);
+            unsafe {
+                buffers[0].as_mut_ptr().write_volatile(ch);
+            }
+            1
+        },
+        _ => {
+            panic!("Unsupported fd in sys_read!");
         }
     }
 }

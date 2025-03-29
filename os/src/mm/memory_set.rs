@@ -6,7 +6,7 @@ use crate::{
 };
 use alloc::{collections::btree_map::BTreeMap, vec::Vec};
 use bitflags::*;
-use log::{debug, info};
+use log::debug;
 
 
 use super::{
@@ -79,6 +79,17 @@ impl MapArea {
                 break;
             }
             current_vpn.step();
+        }
+    }
+
+    pub fn from_another(another: &MapArea) -> Self {
+        Self {
+            vpn_range: VPNRange::new(
+                another.vpn_range.get_start(),
+                another.vpn_range.get_end()
+            ),
+            data_frames: BTreeMap::new(),
+            map_perm: another.map_perm,
         }
     }
 }
@@ -196,20 +207,6 @@ impl MemorySet {
             ),
             None,
         );
-        // // map TrapContext
-        // memory_set.push(
-        //     MapArea::new(
-        //         TRAP_CONTEXT.into(),
-        //         TRAMPOLINE.into(),
-        //         MapType::Framed,
-        //         MapPermission::NX | MapPermission::W,
-        //     ),
-        //     None,
-        // );
-        info!(
-            "user stack bottom: {:#x}, user stack top: {:#x}",
-            user_stack_bottom, user_stack_top
-        );
         (
             memory_set,
             user_stack_top,
@@ -220,5 +217,25 @@ impl MemorySet {
     pub fn token(&self) -> usize {
         // 这里只返回跟页表的地址
         self.page_table.token()
+    }
+
+    pub fn from_existed_process(user_space: &MemorySet) -> Self {
+        let mut memory_set = Self::new_bare();
+
+        user_space.areas.iter().for_each(|area| {
+            let new_area = MapArea::from_another(area);
+            memory_set.push(new_area, None);
+
+            for vpn in area.vpn_range {
+                let src_ppn = user_space.page_table.translate(vpn).unwrap().ppn();
+                let dst_ppn = memory_set.page_table.translate(vpn).unwrap().ppn();
+                dst_ppn.get_bytes_array().copy_from_slice(src_ppn.get_bytes_array());
+            }
+        });
+        memory_set
+    }
+
+    pub fn recycle_data_pages(&mut self) {
+        self.areas.clear();
     }
 }

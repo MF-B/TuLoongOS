@@ -29,5 +29,5 @@ __switch:
         .set n, n+1
     .endr
     ld.d $sp, $a1, 1*8
-    csrwr $a2,0x18
+    # csrwr $a2,0x18
     jr $ra

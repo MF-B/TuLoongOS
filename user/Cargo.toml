@@ -6,5 +6,6 @@ edition = "2024"
 [dependencies]
 loongArch64 = {version = "0.2.4"}
 log = { version = "0.4"}
+buddy_system_allocator = "0.6"
 
 [features]

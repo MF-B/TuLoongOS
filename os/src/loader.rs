@@ -1,37 +1,28 @@
-use crate::config::{KERNEL_STACK_SIZE, MAX_APP_NUM};
-use crate::trap::TrapFrame;
+use alloc::vec::Vec;
+use lazy_static::*;
 
-#[derive(Copy, Clone)]
-pub struct KernelStack {
-    data: [usize; KERNEL_STACK_SIZE],
-}
-impl KernelStack {
-    pub fn push_context(&self, trap_cx: TrapFrame) -> usize {
-        let trap_cx_ptr = (self.get_sp() - core::mem::size_of::<TrapFrame>()) as *mut TrapFrame;
-        unsafe {
-            *trap_cx_ptr = trap_cx;
+lazy_static! {
+    static ref APP_NAMES: Vec<&'static str> = {
+        let num_app = get_num_app();
+        unsafe extern "C" { 
+            fn _app_names(); 
         }
-        trap_cx_ptr as usize
-    }
-    fn get_sp(&self) -> usize {
-        self.data.as_ptr() as usize + KERNEL_STACK_SIZE
-    }
-
-    pub fn get_trap_cx(&self) -> usize {
-        self.get_sp() - core::mem::size_of::<TrapFrame>()
-    }
-}
-
-pub static KERNEL_STACK: [KernelStack; MAX_APP_NUM] = [KernelStack {
-    data: [0; KERNEL_STACK_SIZE],
-}; MAX_APP_NUM];
-
-pub fn init_app_cx(app_id: usize, entry_point: usize, user_sp: usize) -> usize {
-    KERNEL_STACK[app_id].push_context(TrapFrame::app_init_context(entry_point, user_sp))
-}
-
-pub fn get_app_trap_cx(app_id: usize) -> usize {
-    KERNEL_STACK[app_id].get_trap_cx()
+        let mut start = _app_names as usize as *const u8;
+        let mut v = Vec::new();
+        unsafe {
+            for _ in 0..num_app {
+                let mut end = start;
+                while end.read_volatile() != '\0' as u8 {
+                    end = end.add(1);
+                }
+                let slice = core::slice::from_raw_parts(start, end as usize - start as usize);
+                let str = core::str::from_utf8(slice).unwrap();
+                v.push(str);
+                start = end.add(1);
+            }
+        }
+        v
+    };
 }
 
 pub fn get_num_app() -> usize {
@@ -58,4 +49,19 @@ pub fn get_app_data(app_id: usize) -> &'static [u8] {
             app_start[app_id + 1] - app_start[app_id],
         )
     }
+}
+
+pub fn get_app_data_by_name(name: &str) -> Option<&'static [u8]> {
+    let num_app = get_num_app();
+    (0..num_app)
+        .find(|&i| APP_NAMES[i] == name)
+        .map(|i| get_app_data(i))
+}
+
+pub fn list_apps() {
+    println!("/**** APPS ****");
+    for app in APP_NAMES.iter() {
+        println!("{}", app);
+    }
+    println!("**************/")
 }

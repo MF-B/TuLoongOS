@@ -1,3 +1,5 @@
+use core::ptr::addr_of_mut;
+
 use buddy_system_allocator::LockedHeap;
 use crate::config::KERNEL_HEAP_SIZE;
 
@@ -8,10 +10,11 @@ static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 
 pub fn init_heap() {
     unsafe{
-        let heap_space = &raw mut HEAP_SPACE as usize;
+        //let heap_space = &raw mut HEAP_SPACE as usize;
+        
         HEAP_ALLOCATOR
             .lock()
-            .init(heap_space , KERNEL_HEAP_SIZE);
+            .init(addr_of_mut!(HEAP_SPACE) as usize , KERNEL_HEAP_SIZE);
     }
 }
 

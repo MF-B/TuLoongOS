@@ -4,7 +4,9 @@
 
 use core::arch::global_asm;
 use config::print_machine_info;
+use loader::list_apps;
 use log::*;
+use task::processor;
 
 #[macro_use]
 mod console;
@@ -82,8 +84,12 @@ pub fn rust_main() -> ! {
     mm::init();
     trap::init();
     print_machine_info();
-    //trap::enable_timer_interrupt();
-    task::init();
+    
+    list_apps();
+    // 启动第一个用户进程
+    task::add_initproc();
+    processor::run_tasks();
+
     // 关机
     misc::terminate();
 }

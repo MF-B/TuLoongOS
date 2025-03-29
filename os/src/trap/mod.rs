@@ -4,33 +4,29 @@ pub use context::TrapFrame;
 use loongArch64::register::ecfg::LineBasedInterrupt;
 use crate::mm::{PageTable,VirtAddr, VirtPageNum};
 use crate::syscall::syscall;
-use crate::task::{current_trap_cx, current_user_token, exit_current_and_run_next, suspend_current_and_run_next};
+use crate::task::processor::{current_trap_cx, current_user_token};
+use crate::task::{exit_current_and_run_next, suspend_current_and_run_next};
 use crate::timer::set_next_trigger;
 use loongArch64::register::estat::{self, Exception, Interrupt, Trap};
-use loongArch64::register::{crmd, dmw0, ecfg, eentry, pwch, pwcl, stlbps, tcfg, ticlr, tlbelo0, tlbelo1, tlbidx, tlbrbadv, tlbrehi, tlbrelo0, tlbrelo1, tlbrentry};
+use loongArch64::register::{badv, crmd, dmw0, ecfg, eentry, pgd, pwch, pwcl, stlbps, tcfg, ticlr, tlbelo0, tlbelo1, tlbidx, tlbrbadv, tlbrehi, tlbrelo0, tlbrelo1, tlbrentry};
 use log::*;
 
 global_asm!(include_str!("trap.S"));
 global_asm!(include_str!("tlb.S"));
 
 pub fn init() {
-//unsafe extern "C" { fn __alltraps(); }
-    // 设置中断入口点地址到 tcfg.tvec 寄存器
-
     // 为内核设置直接映射地址翻译模式
     dmw0::set_vseg(0x0);
     dmw0::set_plv0(true);
     dmw0::set_plv3(false);
-    //dmw0::set_mat(MemoryAccessType::StronglyOrderedUnCached);
-
     unsafe extern "C" {
         fn __alltraps();
         fn __tlb_rfill();
-        //fn kernel_trap_entry();
     }
 
     set_exception_entry_base(__alltraps as usize);
     tlbrentry::set_tlbrentry(__tlb_rfill as usize);
+    //tlbrentry::set_tlbrentry(__alltraps as usize);
     stlbps::set_ps(0xe);
     tlbrehi::set_ps(0xe); //设置STLB的页面大小为16KiB
     pwcl::set_pte_width(8);
@@ -55,8 +51,6 @@ pub fn init() {
 #[inline]
 pub fn set_exception_entry_base(eentry: usize) {
     eentry::set_eentry(eentry);
-    //crmd::set_datf(MemoryAccessType::CoherentCached);
-    //crmd::set_datm(MemoryAccessType::CoherentCached);
 }
 
 /// timer interrupt enabled
@@ -91,47 +85,30 @@ fn trap_handler(tf: &mut TrapFrame) -> &mut TrapFrame {
         Trap::Exception(Exception::Syscall) => {
             tf.era += 4;
             tf.regs.a0 = syscall(tf, tf.regs.a7) as usize;
-            // trace!(
-            //     "trap {:?} @ {:#x}:\n{:#x?}",
+        }
+        Trap::Exception(Exception::StorePageFault) | Trap::Exception(Exception::LoadPageFault) |
+        Trap::Exception(Exception::MemoryAccessAddressError) | Trap::Exception(Exception::InstructionNotExist) |
+        Trap::Exception(Exception::FetchPageFault)
+         => {
+            // error!(
+            //     "Unhandled trap {:?} @ {:#x}:\n{:#x?}\necode: {:#x?}",
             //     estat.cause(),
             //     tf.era,
-            //     tf
+            //     tf,
+            //     estat.ecode()
             // );
-        }
-        Trap::Exception(Exception::StorePageFault) => {
-            error!("StorePageFault in application, kernel killed it.");
-            exit_current_and_run_next();
-        }
-        Trap::Exception(Exception::LoadPageFault) => {
-            error!("LoadPageFault in application, kernel killed it.");
-            exit_current_and_run_next();
-        }
-        Trap::Exception(Exception::MemoryAccessAddressError) => {
-            error!("MemoryAccessAddressError in application, kernel killed it.");
-            exit_current_and_run_next();
-        }
-        Trap::Exception(Exception::InstructionNotExist) => {
-            error!("InstructionNotExist in application, kernel killed it.");
-            debug!(
-                "trap {:?} @ {:#x}:\n{:#x?}\n{:?}",
-                estat.cause(),
-                tf.era,
-                tf,
-                crmd
-            );
-            exit_current_and_run_next();
+            error!("{:?} in application, kernel killed it.", estat.cause());
+            exit_current_and_run_next(-2);
         }
         Trap::Exception(Exception::InstructionPrivilegeIllegal) => {
             error!("InstructionPrivilegeIllegal in application, kernel killed it.");
-            exit_current_and_run_next();
+            exit_current_and_run_next(-3);
         }
         Trap::Exception(Exception::TLBRFill) => {
-            tlb_refill_handler()
-            //suspend_current_and_run_next();
+            tlb_refill_handler();
         }
         Trap::Exception(Exception::PageModifyFault) => {
             tlb_page_modify_handler();
-            //exit_current_and_run_next();
         }
         _ => {
             panic!(
@@ -175,6 +152,7 @@ pub fn set_user_trap_entry() {
 
 #[unsafe(no_mangle)]
 pub fn trap_return() {
+    info!("trap_return");
     set_user_trap_entry();
     let trap_cx = current_trap_cx();
     unsafe extern "C" {
@@ -205,4 +183,32 @@ fn tlb_page_modify_handler() {
     unsafe {
         asm!("tlbwr"); //重新将tlbelo写入tlb
     }
+}
+
+#[unsafe(no_mangle)]
+fn tlb_page_fault(){
+    //检查pagefault相关内容
+    // unsafe {
+    //     asm!(
+    //         "tlbsrch",
+    //         "tlbrd",
+    //     )
+    // }
+    let badv = badv::read().vaddr();
+    let token = current_user_token();
+    let vpn: VirtAddr = badv.into(); //虚拟地址
+    let vpn: VirtPageNum = vpn.floor(); //虚拟地址的虚拟页号
+    let page_table = PageTable::from_token(token);
+    error!("badv: {:#x}", badv);
+    error!("pgd: {:#x}", pgd::read().base());
+    error!("crmd: {:?}", crmd::read().plv());
+    error!("vpn: {:x?}", vpn);
+    error!("token: {:#x}", token);
+    error!("page_table: {:#x}", page_table.token());
+    if let Some(pte) = page_table.find_pte(vpn){
+        info!("badv:{:#x} has pte:{:?}",badv,pte);
+    }else{
+        info!("badv:{:#x} hasn't pte",badv);
+    }
+
 }

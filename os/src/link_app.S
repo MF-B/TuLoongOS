@@ -3,21 +3,32 @@
     .section .data
     .global _num_app
 _num_app:
-    .quad 6
+    .quad 7
     .quad app_0_start
     .quad app_1_start
     .quad app_2_start
     .quad app_3_start
     .quad app_4_start
     .quad app_5_start
-    .quad app_5_end
+    .quad app_6_start
+    .quad app_6_end
+
+    .global _app_names
+_app_names:
+    .string "hello"
+    .string "hello_world"
+    .string "init_proc"
+    .string "power"
+    .string "priv_inst"
+    .string "store_fault"
+    .string "user_shell"
 
     .section .data
     .global app_0_start
     .global app_0_end
     .align 3
 app_0_start:
-    .incbin "../user/target/loongarch64-unknown-none/release/00hello_world"
+    .incbin "../user/target/loongarch64-unknown-none/release/hello"
 app_0_end:
 
     .section .data
@@ -25,7 +36,7 @@ app_0_end:
     .global app_1_end
     .align 3
 app_1_start:
-    .incbin "../user/target/loongarch64-unknown-none/release/01store_fault"
+    .incbin "../user/target/loongarch64-unknown-none/release/hello_world"
 app_1_end:
 
     .section .data
@@ -33,7 +44,7 @@ app_1_end:
     .global app_2_end
     .align 3
 app_2_start:
-    .incbin "../user/target/loongarch64-unknown-none/release/02power"
+    .incbin "../user/target/loongarch64-unknown-none/release/init_proc"
 app_2_end:
 
     .section .data
@@ -41,7 +52,7 @@ app_2_end:
     .global app_3_end
     .align 3
 app_3_start:
-    .incbin "../user/target/loongarch64-unknown-none/release/03priv_csr"
+    .incbin "../user/target/loongarch64-unknown-none/release/power"
 app_3_end:
 
     .section .data
@@ -49,7 +60,7 @@ app_3_end:
     .global app_4_end
     .align 3
 app_4_start:
-    .incbin "../user/target/loongarch64-unknown-none/release/04priv_inst"
+    .incbin "../user/target/loongarch64-unknown-none/release/priv_inst"
 app_4_end:
 
     .section .data
@@ -57,5 +68,13 @@ app_4_end:
     .global app_5_end
     .align 3
 app_5_start:
-    .incbin "../user/target/loongarch64-unknown-none/release/05store_fault"
+    .incbin "../user/target/loongarch64-unknown-none/release/store_fault"
 app_5_end:
+
+    .section .data
+    .global app_6_start
+    .global app_6_end
+    .align 3
+app_6_start:
+    .incbin "../user/target/loongarch64-unknown-none/release/user_shell"
+app_6_end:
