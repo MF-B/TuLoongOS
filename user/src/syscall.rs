@@ -8,6 +8,7 @@ const SYSCALL_GET_TIME: usize = 169;
 const SYSCALL_FORK: usize = 220;
 const SYSCALL_EXEC: usize = 221;
 const SYSCALL_WAITPID: usize = 260;
+const SYSCALL_GETPID: usize = 172;
 
 
 global_asm!(include_str!("syscall.S"));
@@ -55,3 +56,8 @@ pub fn sys_exec(path: &str) -> isize {
 pub fn sys_read(fd: usize, buffer: &mut [u8]) -> isize {
     syscall(SYSCALL_READ, [fd, buffer.as_mut_ptr() as usize, buffer.len()])
 }
+
+pub fn sys_getpid() -> isize {
+    syscall(SYSCALL_GETPID, [0, 0, 0])
+}
+

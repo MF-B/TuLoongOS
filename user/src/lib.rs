@@ -32,31 +32,6 @@ pub extern "C" fn _start() -> ! {
         HEAP.lock()
             .init(addr_of_mut!(HEAP_SPACE) as usize, USER_HEAP_SIZE);
     }
-
-    // unsafe extern "C" {
-    //     safe fn s_text(); // begin addr of text segment
-    //     safe fn e_text(); // end addr of text segment
-    //     safe fn s_rodata(); // start addr of Read-Only data segment
-    //     safe fn e_rodata(); // end addr of Read-Only data ssegment
-    //     safe fn s_data(); // start addr of data segment
-    //     safe fn e_data(); // end addr of data segment
-    //     fn s_bss(); // start addr of BSS segment
-    //     fn e_bss(); // end addr of BSS segment
-    // }
-    // println!(
-    //     "[ user ] .text [{:#x}, {:#x})",
-    //     s_text as usize, e_text as usize
-    // );
-    // println!(
-    //     "[ user ] .rodata [{:#x}, {:#x})",
-    //     s_rodata as usize, e_rodata as usize
-    // );
-    // println!(
-    //     "[ user ] .data [{:#x}, {:#x})",
-    //     s_data as usize, e_data as usize
-    // );
-    // println!("[ user ] .bss [{:#x}, {:#x})", s_bss as usize, e_bss as usize);
-
     exit(main());
     panic!("unreachable after sys_exit!");
 }
@@ -93,5 +68,14 @@ pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
             // -1 or a real pid
             exit_pid => return exit_pid,
         }
+    }
+}
+
+pub fn getpid() -> isize { sys_getpid() }
+
+pub fn sleep(period_ms: usize) {
+    let start = sys_get_time();
+    while sys_get_time() < start + period_ms as isize {
+        sys_yield();
     }
 }

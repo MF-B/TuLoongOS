@@ -152,7 +152,6 @@ pub fn set_user_trap_entry() {
 
 #[unsafe(no_mangle)]
 pub fn trap_return() {
-    info!("trap_return");
     set_user_trap_entry();
     let trap_cx = current_trap_cx();
     unsafe extern "C" {

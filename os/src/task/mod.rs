@@ -17,7 +17,7 @@ use crate::loader::get_app_data_by_name;
 
 lazy_static! {
     pub static ref INITPROC: Arc<ProcessControlBlock> = Arc::new(
-        ProcessControlBlock::new(get_app_data_by_name("init_proc").unwrap())
+        ProcessControlBlock::new(get_app_data_by_name("initproc").unwrap())
     );
 }
 

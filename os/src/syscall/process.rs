@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 use log::*;
 
-use crate::{loader::get_app_data_by_name, mm::{translated_refmut, translated_str}, task::{exit_current_and_run_next, manager::add_process, processor::{current_task, current_user_token}, suspend_current_and_run_next}, trap::TrapFrame};
+use crate::{loader::get_app_data_by_name, mm::{translated_refmut, translated_str}, task::{exit_current_and_run_next, manager::add_process, processor::{current_task, current_user_token}, suspend_current_and_run_next},trap::TrapFrame};
 
 pub fn sys_exit(exit_code: i32) -> ! {
     info!("Application exited with code {}", exit_code);
@@ -77,4 +77,8 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
         -2
     }
     // ---- stop exclusively accessing current PCB automatically
+}
+
+pub fn sys_getpid() -> isize {
+    current_task().unwrap().getpid() as isize
 }

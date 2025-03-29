@@ -2,19 +2,13 @@
 #![no_main]
 
 #[macro_use]
-extern crate user;
+extern crate user_lib;
 
-use user::{
-    fork,
-    wait,
-    exec,
-    yield_,
-};
+use user_lib::{exec, fork, wait, yield_};
 
 #[unsafe(no_mangle)]
 fn main() -> i32 {
     if fork() == 0 {
-        println!("[initproc] executing user shell");
         exec("user_shell\0");
     } else {
         loop {
@@ -26,8 +20,7 @@ fn main() -> i32 {
             }
             println!(
                 "[initproc] Released a zombie process, pid={}, exit_code={}",
-                pid,
-                exit_code,
+                pid, exit_code,
             );
         }
     }

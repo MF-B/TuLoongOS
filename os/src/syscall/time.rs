@@ -1,4 +1,4 @@
-use crate::timer::get_time_us;
+use crate::timer::get_time_ms;
 
 // #[repr(C)]
 // #[derive(Debug,Default)]
@@ -9,5 +9,5 @@ use crate::timer::get_time_us;
 
 pub fn sys_get_time() -> isize {
     // unsafe { ts.as_mut().unwrap().sec = get_time_us() };
-    get_time_us() as isize
+    get_time_ms() as isize
 }
