@@ -11,7 +11,7 @@ use alloc::sync::Arc;
 use context::ProcessControlBlock;
 use lazy_static::*;
 use manager::add_process;
-use processor::{schedule, take_current_task};
+use processor::{schedule, take_current_process};
 use task::{TaskContext, TaskStatus};
 use crate::loader::get_app_data_by_name;
 
@@ -27,10 +27,10 @@ pub fn add_initproc() {
 
 pub fn suspend_current_and_run_next() {
     // There must be an thread running.
-    let task = take_current_task().unwrap();
+    let process = take_current_process().unwrap();
 
     // ---- access current TCB exclusively
-    let mut task_inner = task.inner_exclusive_access();
+    let mut task_inner = process.inner_exclusive_access();
     let task_cx_ptr = &mut task_inner.task_context as *mut TaskContext;
     // Change status to Ready
     task_inner.task_status = TaskStatus::Ready;
@@ -38,14 +38,14 @@ pub fn suspend_current_and_run_next() {
     // ---- release current PCB
 
     // push back to ready queue.
-    add_process(task);
+    add_process(process);
     // jump to scheduling cycle
     schedule(task_cx_ptr);
 }
 
 pub fn exit_current_and_run_next(exit_code: i32) {
     // 将当前进程从processor中移除
-    let task = take_current_task().unwrap();
+    let task = take_current_process().unwrap();
     let pid = task.getpid();
 
     // 标记为僵尸进程,并修改其exit_code码
@@ -74,3 +74,4 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     }
     schedule(&mut _unused as *mut _);
 }
+

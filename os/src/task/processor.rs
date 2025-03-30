@@ -39,22 +39,22 @@ impl Processor {
     }
 }
 
-pub fn take_current_task() -> Option<Arc<ProcessControlBlock>> {
+pub fn take_current_process() -> Option<Arc<ProcessControlBlock>> {
     PROCESSOR.exclusive_access().take_current()
 }
 
-pub fn current_task() -> Option<Arc<ProcessControlBlock>> {
+pub fn current_process() -> Option<Arc<ProcessControlBlock>> {
     PROCESSOR.exclusive_access().current()
 }
 
 pub fn current_user_token() -> usize {
-    let task = current_task().unwrap();
+    let task = current_process().unwrap();
     let token = task.inner_exclusive_access().get_user_token();
     token
 }
 
 pub fn current_trap_cx() -> usize {
-    let task = current_task().unwrap();
+    let task = current_process().unwrap();
     task.get_trap_cx()
 }
 
