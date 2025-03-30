@@ -97,7 +97,7 @@ fn trap_handler(tf: &mut TrapFrame) -> &mut TrapFrame {
             //     tf,
             //     estat.ecode()
             // );
-            error!("{:?} in application, kernel killed it.", estat.cause());
+            error!("{:?} in process, kernel killed it.", estat.cause());
             exit_current_and_run_next(-2);
         }
         Trap::Exception(Exception::InstructionPrivilegeIllegal) => {

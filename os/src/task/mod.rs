@@ -10,6 +10,7 @@ use core::arch::asm;
 use alloc::sync::Arc;
 use context::ProcessControlBlock;
 use lazy_static::*;
+use log::info;
 use manager::add_process;
 use processor::{schedule, take_current_process};
 use task::{TaskContext, TaskStatus};
@@ -67,6 +68,9 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     task_inner.memory_set.recycle_data_pages();
     drop(task_inner);
     drop(task);
+
+    info!("Process: {} exited with code: {}", pid, exit_code);
+
     // we do not have to save task context
     let mut _unused = TaskContext::default();
     unsafe {
