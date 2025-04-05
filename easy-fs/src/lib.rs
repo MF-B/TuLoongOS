@@ -1,0 +1,1 @@
+pub const BLOCK_SZ: usize = 512;

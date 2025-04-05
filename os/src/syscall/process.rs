@@ -4,8 +4,6 @@ use log::*;
 use crate::{loader::get_app_data_by_name, mm::{translated_refmut, translated_str}, task::{exit_current_and_run_next, manager::add_process, processor::{current_process, current_user_token}, suspend_current_and_run_next},trap::TrapFrame};
 
 pub fn sys_exit(exit_code: i32) -> ! {
-    let pid = current_process().unwrap().getpid();
-    info!("Process: {} exited with code {}", pid, exit_code);
     exit_current_and_run_next(exit_code);
     panic!("Unreachable in sys_exit!");
 }
