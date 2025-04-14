@@ -14,12 +14,14 @@ use log::info;
 use manager::add_process;
 use processor::{schedule, take_current_process};
 use task::{TaskContext, TaskStatus};
-use crate::loader::get_app_data_by_name;
+use crate::fs::inode::{open_file, OpenFlags};
 
 lazy_static! {
-    pub static ref INITPROC: Arc<ProcessControlBlock> = Arc::new(
-        ProcessControlBlock::new(get_app_data_by_name("initproc").unwrap())
-    );
+    pub static ref INITPROC: Arc<ProcessControlBlock> = Arc::new({
+        let inode = open_file("initproc", OpenFlags::RDONLY).unwrap();
+        let v = inode.read_all();
+        ProcessControlBlock::new(v.as_slice())
+    });
 }
 
 pub fn add_initproc() {

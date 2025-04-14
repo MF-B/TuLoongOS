@@ -7,9 +7,11 @@ pub mod console;
 mod syscall;  // 确保有一个 syscall.rs 文件
 mod lang_items;
 use core::ptr::addr_of_mut;
+use bitflags::bitflags;
 
 use buddy_system_allocator::LockedHeap;
 pub use console::*;
+use syscall::*;
 
 const USER_HEAP_SIZE: usize = 16384;
 
@@ -26,14 +28,12 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text.entry")]
 pub extern "C" fn _start() -> ! {
-    
     unsafe {
         //let heap_space = &raw mut HEAP_SPACE as usize;
         HEAP.lock()
             .init(addr_of_mut!(HEAP_SPACE) as usize, USER_HEAP_SIZE);
     }
     exit(main());
-    panic!("unreachable after sys_exit!");
 }
 
 #[linkage = "weak"]
@@ -42,11 +42,27 @@ fn main() -> i32 {
     panic!("Cannot find main!");
 }
 
-use syscall::*;
+bitflags! {
+    pub struct OpenFlags: u32 {
+        const RDONLY = 0;
+        const WRONLY = 1 << 0;
+        const RDWR = 1 << 1;
+        const CREATE = 1 << 9;
+        const TRUNC = 1 << 10;
+    }
+}
 
+pub fn open(path: &str, flags: OpenFlags) -> isize {
+    sys_open(path, flags.bits)
+}
+pub fn close(fd: usize) -> isize {
+    sys_close(fd)
+}
 pub fn write(fd: usize, buf: &[u8]) -> isize { sys_write(fd, buf) }
 pub fn read(fd: usize, buf: &mut [u8]) -> isize { sys_read(fd, buf) }
-pub fn exit(exit_code: i32) -> isize { sys_exit(exit_code) }
+pub fn exit(exit_code: i32) -> ! {
+    sys_exit(exit_code);
+}
 pub fn yield_() -> isize { sys_yield() }
 pub fn get_time() -> isize { sys_get_time()}
 pub fn fork() -> isize { sys_fork() }

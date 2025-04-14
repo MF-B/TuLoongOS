@@ -1,0 +1,1 @@
+pub type BlockDeviceImpl = crate::drivers::block::VirtIOBlock;

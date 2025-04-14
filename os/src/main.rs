@@ -4,9 +4,12 @@
 
 use core::arch::global_asm;
 use config::print_machine_info;
-use loader::list_apps;
 use log::*;
 use task::processor;
+use crate::drivers::block::block_device_test;
+
+#[path = "boards/qemu.rs"]
+mod board;
 
 #[macro_use]
 mod console;
@@ -19,17 +22,19 @@ mod logo;
 mod syscall;
 mod sync;
 mod trap;
-mod loader;
 mod config;
 mod task;
 mod timer;
 mod mm;
+mod drivers;
+pub mod fs;
+
+
 
 extern crate alloc;
 extern crate bitflags;
 
 global_asm!(include_str!("entry.asm"));
-global_asm!(include_str!("link_app.S"));
 
 
 fn clear_bss() {
@@ -82,10 +87,11 @@ pub fn rust_main() -> ! {
     
     info!("协作式调度系统启动中...");
     mm::init();
+    loop {};
     trap::init();
     print_machine_info();
-    
-    list_apps();
+    block_device_test();
+    fs::list_apps();
     // 启动第一个用户进程
     task::add_initproc();
     processor::run_tasks();

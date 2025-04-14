@@ -1,49 +1,99 @@
-TARGET := target/loongarch64-unknown-none/release/os
-QEMU := qemu-system-loongarch64
-LOG ?= INFO
-USER_DIR := ../user
+# Building
+TARGET := loongarch64-unknown-none
+MODE := release
+KERNEL_ELF := target/$(TARGET)/$(MODE)/os
+KERNEL_BIN := $(KERNEL_ELF).bin
+DISASM_TMP := target/$(TARGET)/$(MODE)/asm
+FS_IMG := ../user/target/$(TARGET)/$(MODE)/fs.img
+APPS := ../user/src/bin/*
 
-QEMU_ARGS := -m 1G -smp 1 -machine virt -nographic -kernel $(TARGET)
+# BOARD
+BOARD := qemu
+SBI ?= rustsbi
+BOOTLOADER := ../bootloader/$(SBI)-$(BOARD).bin
 
-# 默认目标
-all: build
+# Building mode argument
+ifeq ($(MODE), release)
+	MODE_ARG := --release
+endif
 
-# 构建项目
-build:
-	cargo build --release
+# KERNEL ENTRY
+KERNEL_ENTRY_PA := 0x80200000
 
-# 构建用户程序
-build-user:
-	@echo "Building user applications..."
-	@cd $(USER_DIR) && make build
+# Binutils
+OBJDUMP := rust-objdump --arch-name=loongarch64
+OBJCOPY := rust-objcopy --binary-architecture=loongarch64
 
-# 运行项目
-run: build-user build
-	$(QEMU) -m 1G -smp 1 -machine virt \
-		-nographic \
-		-kernel $(TARGET)
-		
+# Disassembly
+DISASM ?= -x
 
-# 调试模式运行
-debug: build-user build
+# Run usertests or usershell
+TEST ?=
+
+build: env $(KERNEL_BIN) fs-img 
+
+env:
+	(rustup target list | grep "loongarch64-unknown-none (installed)") || rustup target add $(TARGET)
+	cargo install cargo-binutils
+	rustup component add rust-src
+	rustup component add llvm-tools-preview
+
+$(KERNEL_BIN): kernel
+	@$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@
+
+fs-img: $(APPS)
+	@cd ../user && make build TEST=$(TEST)
+	@rm -f $(FS_IMG)
+	@cd ../easy-fs-fuse && cargo run --release -- -s ../user/src/bin/ -t ../user/target/loongarch64-unknown-none/release/
+
+$(APPS):
+
+kernel:
+	@echo Platform: $(BOARD)
+	@cp src/linker-$(BOARD).ld src/linker.ld
+	@cargo build --release
+	@rm src/linker.ld
+
+clean:
+	@cargo clean
+
+disasm: kernel
+	@$(OBJDUMP) $(DISASM) $(KERNEL_ELF) | less
+
+disasm-vim: kernel
+	@$(OBJDUMP) $(DISASM) $(KERNEL_ELF) > $(DISASM_TMP)
+	@vim $(DISASM_TMP)
+	@rm $(DISASM_TMP)
+
+run: run-inner
+
+QEMU_ARGS := -machine virt \
+			-m 1G -smp 1 \
+			-nographic \
+			-kernel $(KERNEL_ELF) \
+			-device virtio-blk-pci,drive=disk0 \
+			-drive file=$(FS_IMG),id=disk0,if=none,format=raw
+#			-drive file=$(FS_IMG),if=none,format=raw,id=x0 \
+#			-device ahci,id=ahci0 \
+#			-device ide-hd,drive=x0,bus=ahci0.0
+
+QEMU_NAME := qemu-system-loongarch64
+qemu-version-check:
+	@sh scripts/qemu-ver-check.sh $(QEMU_NAME)
+
+run-inner: qemu-version-check build
+	@qemu-system-loongarch64 $(QEMU_ARGS)
+
+debug: qemu-version-check build
 	@tmux new-session -d \
-		"$(QEMU) $(QEMU_ARGS) -s -S" && \
-		tmux split-window -h "~/osEnv/gdb/bin/loongarch64-unknown-linux-gnu-gdb -ex 'file target/loongarch64-unknown-none/release/os' -ex 'target remote localhost:1234'" && \
+		"qemu-system-loongarch64 $(QEMU_ARGS) -s -S" && \
+		tmux split-window -h "~/osEnv/gdb/bin/loongarch64-unknown-linux-gnu-gdb -ex 'file $(KERNEL_ELF)' -ex 'target remote localhost:1234'" && \
 		tmux -2 attach-session -d
 
-# debug: qemu-version-check build
-# 	@tmux new-session -d \
-# 		"qemu-system-riscv64 $(QEMU_ARGS) -s -S" && \
-# 		tmux split-window -h "~/osEnv/gdb/bin/loongarch64-unknown-linux-gnu-gdb -ex 'file $(KERNEL_ELF)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'" && \
-# 		tmux -2 attach-session -d
+gdbserver: qemu-version-check build
+	@qemu-system-loongarch64 $(QEMU_ARGS) -s -S
 
-# 清理用户程序
-clean-user:
-	@echo "Cleaning user applications..."
-	@cd $(USER_DIR) && make clean || true
+gdbclient:
+	@loongarch64-unknown-linux-gnu-gdb -ex 'file $(KERNEL_ELF)' -ex 'target remote localhost:1234'
 
-# 清理项目
-clean: clean-user
-	cargo clean
-
-.PHONY: all build run debug clean
+.PHONY: build env kernel clean disasm disasm-vim run-inner fs-img gdbserver gdbclient qemu-version-check

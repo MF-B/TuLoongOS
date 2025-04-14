@@ -95,7 +95,7 @@ impl FrameTracker {
 
 impl Drop for FrameTracker {
     fn drop(&mut self) {
-        frame_deallocator(self.ppn);
+        frame_dealloc(self.ppn);
     }
 }
 
@@ -115,7 +115,7 @@ pub fn frame_alloc() -> Option<FrameTracker> {
     FRAME_ALLOCATOR.exclusive_access().alloc().map(|ppn|FrameTracker::new(ppn))
 }
 
-pub fn frame_deallocator(ppn: PhysPageNum) {
+pub fn frame_dealloc(ppn: PhysPageNum) {
     FRAME_ALLOCATOR.exclusive_access().dealloc(ppn);
 }
 

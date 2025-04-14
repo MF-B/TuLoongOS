@@ -1,7 +1,6 @@
 use alloc::sync::Arc;
-use log::*;
 
-use crate::{loader::get_app_data_by_name, mm::{translated_refmut, translated_str}, task::{exit_current_and_run_next, manager::add_process, processor::{current_process, current_user_token}, suspend_current_and_run_next},trap::TrapFrame};
+use crate::{fs::inode::{open_file, OpenFlags}, mm::{translated_refmut, translated_str}, task::{exit_current_and_run_next, manager::add_process, processor::{current_process, current_user_token}, suspend_current_and_run_next}, trap::TrapFrame};
 
 pub fn sys_exit(exit_code: i32) -> ! {
     exit_current_and_run_next(exit_code);
@@ -31,10 +30,10 @@ pub fn sys_fork() -> isize {
 pub fn sys_exec(path: *const u8) -> isize {
     let token = current_user_token();
     let path = translated_str(token, path);
-    if let Some(data) = get_app_data_by_name(path.as_str()) {
-        debug!("Application exec {}", path);
+    if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
+        let all_data = app_inode.read_all();
         let task = current_process().unwrap();
-        task.exec(data);
+        task.exec(all_data.as_slice());
         0
     } else {
         -1
