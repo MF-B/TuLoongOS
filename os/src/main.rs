@@ -4,12 +4,9 @@
 
 use core::arch::global_asm;
 use config::print_machine_info;
+use drivers::block::ahci_init;
 use log::*;
 use task::processor;
-use crate::drivers::block::block_device_test;
-
-#[path = "boards/qemu.rs"]
-mod board;
 
 #[macro_use]
 mod console;
@@ -28,8 +25,6 @@ mod timer;
 mod mm;
 mod drivers;
 pub mod fs;
-
-
 
 extern crate alloc;
 extern crate bitflags;
@@ -84,16 +79,14 @@ pub fn rust_main() -> ! {
     );
     info!("[kernel] .bss [{:#x}, {:#x})", sbss as usize, ebss as usize);
 
-    
+    print_machine_info();
     info!("协作式调度系统启动中...");
     mm::init();
-    loop {};
     trap::init();
-    print_machine_info();
-    block_device_test();
-    fs::list_apps();
+    ahci_init();
     // 启动第一个用户进程
     task::add_initproc();
+    fs::list_apps();
     processor::run_tasks();
 
     // 关机

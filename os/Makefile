@@ -68,14 +68,11 @@ disasm-vim: kernel
 run: run-inner
 
 QEMU_ARGS := -machine virt \
-			-m 1G -smp 1 \
+			-m 8G -smp 1 \
 			-nographic \
 			-kernel $(KERNEL_ELF) \
 			-device virtio-blk-pci,drive=disk0 \
-			-drive file=$(FS_IMG),id=disk0,if=none,format=raw
-#			-drive file=$(FS_IMG),if=none,format=raw,id=x0 \
-#			-device ahci,id=ahci0 \
-#			-device ide-hd,drive=x0,bus=ahci0.0
+			-drive id=disk0,if=none,format=raw,file=$(FS_IMG)
 
 QEMU_NAME := qemu-system-loongarch64
 qemu-version-check:
