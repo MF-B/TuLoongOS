@@ -68,7 +68,7 @@ disasm-vim: kernel
 run: run-inner
 
 QEMU_ARGS := -machine virt \
-			-m 1G -smp 1 \
+			-m 8G -smp 1 \
 			-nographic \
 			-kernel $(KERNEL_ELF) \
 			-device virtio-blk-pci,drive=disk0 \
