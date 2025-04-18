@@ -32,11 +32,11 @@ impl PhysAddr {
     pub fn ceil(&self) -> PhysPageNum {
         PhysPageNum((self.0 >> PAGE_SIZE_BITS) + 1)
     }
+    pub fn get_ref<T>(&self) -> &'static T {
+        unsafe { (self.0 as *const T).as_ref().unwrap() }
+    }
     pub fn get_mut<T>(&self) -> &'static mut T {
-        let pa: PhysAddr = self.clone().into();
-        unsafe {
-            (pa.0 as *mut T).as_mut().unwrap()
-        }
+        unsafe { (self.0 as *mut T).as_mut().unwrap() }
     }
 }
 

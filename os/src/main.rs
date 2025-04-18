@@ -10,7 +10,6 @@ use task::processor;
 
 #[macro_use]
 mod console;
-mod uart;
 mod misc;
 mod lang_items;
 mod logging;

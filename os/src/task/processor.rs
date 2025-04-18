@@ -55,7 +55,7 @@ pub fn current_user_token() -> usize {
 
 pub fn current_trap_cx() -> usize {
     let task = current_process().unwrap();
-    task.get_trap_cx()
+    task.kernel_stack.get_trap_cx()
 }
 
 pub fn run_tasks() {

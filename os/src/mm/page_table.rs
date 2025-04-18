@@ -3,7 +3,6 @@ use alloc::vec::*;
 use alloc::{fmt, vec};
 use bit_field::BitField;
 use bitflags::*;
-use log::debug;
 
 use crate::config::{LEVELS, PAGE_SIZE_BITS, PALEN};
 
@@ -118,7 +117,6 @@ impl PageTable {
     pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
         let pte = self.find_pte_create(vpn).unwrap();
         assert!(!pte.is_valid(), "vpn {:?} is mapped before mapping", vpn);
-        debug!("vpn:{:#x}->ppn:{:#x}", vpn.0, ppn.0);
         *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);
     }
     pub fn unmap(&mut self, vpn: VirtPageNum) {
@@ -230,6 +228,14 @@ pub fn translated_str(token: usize, ptr: *const u8) -> String {
     }
     string
 }  
+
+pub fn translated_ref<T>(token: usize, ptr: *const T) -> &'static T {
+    let page_table = PageTable::from_token(token);
+    page_table
+        .translate_va(VirtAddr::from(ptr as usize))
+        .unwrap()
+        .get_ref()
+}
 
 ///translate a generic through page table and return a mutable reference
 pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {

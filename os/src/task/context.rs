@@ -1,6 +1,7 @@
 use core::arch::asm;
 use core::cell::RefMut;
 
+use alloc::string::String;
 use alloc::sync::Weak;
 use alloc::sync::Arc;
 use alloc::vec;
@@ -12,9 +13,13 @@ use crate::config::PAGE_SIZE_BITS;
 use crate::fs::stdio::Stdin;
 use crate::fs::stdio::Stdout;
 use crate::fs::File;
+use crate::mm::translated_refmut;
 use crate::sync::UPSafeCell;
 use crate::mm::memory_set::MemorySet;
+use crate::trap::TrapFrame;
 
+use super::signal::SignalActions;
+use super::signal::SignalFlags;
 use super::{pid::{alloc_pid, KernelStack, PidHandle}, task::{TaskContext, TaskStatus}};
 
 
@@ -28,6 +33,16 @@ pub struct ProcessControlBlock {
 }
 
 pub struct ProcessControlBlockInner {
+    // 信号量
+    pub handling_sig: isize,
+    pub trap_ctx_backup: Option<TrapFrame>,
+    pub signals: SignalFlags,
+    pub signal_mask: SignalFlags,
+    pub signal_actions: SignalActions,
+    // 状态
+    pub killed: bool,
+    pub frozen: bool,
+
     pub base_size: usize,
     pub task_context: TaskContext,
     pub task_status: TaskStatus,
@@ -53,6 +68,13 @@ impl ProcessControlBlock {
             pid, 
             kernel_stack, 
             inner: unsafe { UPSafeCell::new(ProcessControlBlockInner {
+                handling_sig: -1,
+                trap_ctx_backup: None,
+                signals: SignalFlags::empty(),
+                signal_mask: SignalFlags::empty(),
+                signal_actions: SignalActions::default(),
+                killed: false,
+                frozen: false,
                 base_size: user_sp,
                 task_context,
                 task_status,
@@ -72,8 +94,8 @@ impl ProcessControlBlock {
         }
     }
 
-    pub fn get_trap_cx(&self) -> usize {
-        self.kernel_stack.get_trap_cx()
+    pub fn get_trap_cx(&self) -> &'static mut TrapFrame {
+        self.kernel_stack.get_mut::<TrapFrame>()
     }
 
     pub fn inner_exclusive_access(&self) -> RefMut<'_, ProcessControlBlockInner> {
@@ -82,11 +104,40 @@ impl ProcessControlBlock {
     pub fn getpid(&self) -> usize {
         self.pid.0
     }
-    pub fn exec(&self, elf_data: &[u8]) {
-        let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);
+    pub fn exec(&self, elf_data: &[u8], args: Vec<String>) {
+        let (memory_set, mut user_sp, entry_point) = MemorySet::from_elf(elf_data);
+
+        // push arguments on user stack
+        user_sp -= (args.len() + 1) * core::mem::size_of::<usize>();
+        let argv_base = user_sp;
+        let mut argv: Vec<_> = (0..=args.len())
+            .map(|arg| {
+                translated_refmut(
+                    memory_set.token(),
+                    (argv_base + arg * core::mem::size_of::<usize>()) as *mut usize
+                )
+            })
+            .collect();
+        *argv[args.len()] = 0;
+        for i in 0..args.len() {
+            user_sp -= args[i].len() + 1;
+            *argv[i] = user_sp;
+            let mut p = user_sp;
+            for c in args[i].as_bytes() {
+                *translated_refmut(memory_set.token(), p as *mut u8) = *c;
+                p += 1;
+            }
+            *translated_refmut(memory_set.token(), p as *mut u8) = 0;
+        }
+        // make the user_sp aligned to 8B for k210 platform
+        user_sp -= user_sp % core::mem::size_of::<usize>();
+
         let mut inner = self.inner_exclusive_access();
         inner.memory_set = memory_set;
-        self.kernel_stack.init_app_cx(entry_point, user_sp);
+        let mut trap_cx = TrapFrame::app_init_context(entry_point, user_sp);
+        trap_cx.regs.a0 = args.len();
+        trap_cx.regs.a1 = argv_base;
+        self.kernel_stack.push_context(trap_cx);
         let pid = self.getpid();
         unsafe {
             asm!("invtlb 0x4,{},$r0",in(reg) pid);
@@ -103,9 +154,6 @@ impl ProcessControlBlock {
         // 新pcb内容设置
         let c_kernel_stack = KernelStack::new();
         c_kernel_stack.copy_from_existed(&self.kernel_stack);
-        // let old_trap_cx = self.kernel_stack.get_mut::<TrapFrame>();
-        // let new_trap_cx = c_kernel_stack.get_mut::<TrapFrame>();
-        // info!("old_trap_cx: {:#?}, new_trap_cx: {:#?}", old_trap_cx, new_trap_cx);
 
         let c_base_size = parent_pcb.base_size;
         let c_task_context = TaskContext::goto_trap_return(c_kernel_stack.get_trap_cx());
@@ -123,6 +171,13 @@ impl ProcessControlBlock {
             pid,
             kernel_stack: c_kernel_stack,
             inner: unsafe { UPSafeCell::new(ProcessControlBlockInner {
+                handling_sig: parent_pcb.handling_sig,
+                trap_ctx_backup: parent_pcb.trap_ctx_backup.clone(),
+                signals: parent_pcb.signals,
+                signal_mask: parent_pcb.signal_mask,
+                signal_actions: parent_pcb.signal_actions.clone(),
+                killed: parent_pcb.killed,
+                frozen: parent_pcb.frozen,
                 base_size: c_base_size,
                 task_context: c_task_context,
                 task_status: TaskStatus::Ready,

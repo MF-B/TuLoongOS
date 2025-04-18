@@ -1,8 +1,9 @@
 //!Stdin & Stdout
 use super::File;
+use crate::drivers::uart::getc;
 use crate::mm::UserBuffer;
 use crate::task::suspend_current_and_run_next;
-use crate::uart::getc;
+
 ///Standard input
 pub struct Stdin;
 ///Standard output

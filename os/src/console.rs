@@ -1,5 +1,7 @@
-use crate::uart;
+
 use core::fmt::{self, Write};
+
+use crate::drivers::uart;
 
 pub struct Stdout;
 

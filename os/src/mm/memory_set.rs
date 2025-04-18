@@ -1,12 +1,11 @@
 use crate::{
     config::{
-        PAGE_SIZE, PAGE_SIZE_BITS, USER_STACK_SIZE,
+        PAGE_SIZE, USER_STACK_SIZE,
     },
     mm::address::StepByOne,
 };
 use alloc::{collections::btree_map::BTreeMap, vec::Vec};
 use bitflags::*;
-use log::debug;
 
 
 use super::{
@@ -179,11 +178,6 @@ impl MemorySet {
                 if !ph_flags.is_execute() {
                     map_perm |= MapPermission::NX;
                 }
-                debug!(
-                    "start_vpn: {:x?}, end_vpn: {:x?}",
-                    usize::from(start_va) >> PAGE_SIZE_BITS,
-                    usize::from(end_va) >> PAGE_SIZE_BITS
-                );
                 let map_area = MapArea::new(start_va, end_va, map_perm);
                 max_end_vpn = map_area.vpn_range.get_end();
 

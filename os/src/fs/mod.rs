@@ -2,6 +2,8 @@ use crate::mm::UserBuffer;
 
 pub mod inode;
 pub mod stdio;
+pub mod pipe;
+
 pub use inode::{OSInode, OpenFlags, list_apps, open_file};
 pub use stdio::{Stdin, Stdout};
 
