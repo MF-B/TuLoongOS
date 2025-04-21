@@ -116,7 +116,7 @@ fn trap_handler(tf: &mut TrapFrame) {
 
     // check error signals (if error then exit)
     if let Some((errno, msg)) = check_signals_error_of_current() {
-        println!("[kernel] {}", msg);
+        error!("[kernel] {}", msg);
         exit_current_and_run_next(errno);
     }
     trap_return();

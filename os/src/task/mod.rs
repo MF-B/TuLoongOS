@@ -56,7 +56,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     let task = take_current_process().unwrap();
     let pid = task.getpid();
     if pid == IDLE_PID {
-        println!(
+        info!(
             "[kernel] Idle process exit with exit_code {} ...",
             exit_code
         );
@@ -208,7 +208,7 @@ fn call_user_signal_handler(sig: usize, signal: SignalFlags) {
         trap_ctx.regs.a0 = sig;
     } else {
         // default action
-        println!("[K] task/call_user_signal_handler: default action: ignore it or kill process");
+        info!("[K] task/call_user_signal_handler: default action: ignore it or kill process");
     }
 }
 pub fn check_signals_error_of_current() -> Option<(i32, &'static str)> {
