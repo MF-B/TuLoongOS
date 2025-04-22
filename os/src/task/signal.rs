@@ -1,7 +1,5 @@
 use bitflags::*;
 
-pub const MAX_SIG: usize = 31;
-
 bitflags! {
     pub struct SignalFlags: u32 {
         const SIGDEF = 1; // Default signal handling
@@ -73,19 +71,6 @@ impl Default for SignalAction {
         Self {
             handler: 0,
             mask: SignalFlags::from_bits(40).unwrap(),
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct SignalActions {
-    pub table: [SignalAction; MAX_SIG + 1],
-}
-
-impl Default for SignalActions {
-    fn default() -> Self {
-        Self {
-            table: [SignalAction::default(); MAX_SIG + 1],
         }
     }
 }

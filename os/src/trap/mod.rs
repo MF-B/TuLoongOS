@@ -6,7 +6,7 @@ use crate::mm::{PageTable,VirtAddr, VirtPageNum};
 use crate::syscall::syscall;
 use crate::task::processor::{current_trap_cx, current_user_token};
 use crate::task::signal::SignalFlags;
-use crate::task::{check_signals_error_of_current, current_add_signal, exit_current_and_run_next, handle_signals, suspend_current_and_run_next};
+use crate::task::{check_signals_of_current, current_add_signal, exit_current_and_run_next, suspend_current_and_run_next};
 use crate::timer::set_next_trigger;
 use loongArch64::register::estat::{self, Exception, Interrupt, Trap};
 use loongArch64::register::{crmd, dmw0, ecfg, eentry, pwch, pwcl, stlbps, tcfg, ticlr, tlbelo0, tlbelo1, tlbidx, tlbrbadv, tlbrehi, tlbrentry};
@@ -112,10 +112,10 @@ fn trap_handler(tf: &mut TrapFrame) {
             );
         }
     }
-    handle_signals();
+    //handle_signals();
 
     // check error signals (if error then exit)
-    if let Some((errno, msg)) = check_signals_error_of_current() {
+    if let Some((errno, msg)) = check_signals_of_current() {
         error!("[kernel] {}", msg);
         exit_current_and_run_next(errno);
     }

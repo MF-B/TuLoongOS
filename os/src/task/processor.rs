@@ -2,12 +2,12 @@ use alloc::sync::Arc;
 use lazy_static::*;
 use log::debug;
 use loongArch64::register::{asid, pgdl};
-use crate::{config::PAGE_SIZE_BITS, sync::UPSafeCell};
+use crate::{config::PAGE_SIZE_BITS, sync::UPSafeCell, trap::TrapFrame};
 
-use super::{context::ProcessControlBlock, manager::fetch_process, switch::__switch, task::{TaskContext, TaskStatus}};
+use super::{context::{TaskContext, TaskStatus}, manager::fetch_task, process::ProcessControlBlock, switch::__switch, task::TaskControlBlock};
 
 pub struct Processor {
-    current: Option<Arc<ProcessControlBlock>>,
+    current: Option<Arc<TaskControlBlock>>,
     idle_task_cx: TaskContext,
 }
 
@@ -22,64 +22,72 @@ impl Processor {
 
 lazy_static! {
     pub static ref PROCESSOR: UPSafeCell<Processor> = unsafe {
-        debug!("Processor init");
         UPSafeCell::new(Processor::new())
     };
 }
 
 impl Processor {
-    pub fn take_current(&mut self) -> Option<Arc<ProcessControlBlock>> {
+    pub fn take_current(&mut self) -> Option<Arc<TaskControlBlock>> {
         self.current.take()
     }
-    pub fn current(&self) -> Option<Arc<ProcessControlBlock>> {
-        self.current.as_ref().map(|task| Arc::clone(task))
+    pub fn current(&self) -> Option<Arc<TaskControlBlock>> {
+        self.current.as_ref().map(Arc::clone)
     }
     fn get_idle_task_cx_ptr(&mut self) -> *mut TaskContext {
         &mut self.idle_task_cx as *mut _
     }
 }
 
-pub fn take_current_process() -> Option<Arc<ProcessControlBlock>> {
+pub fn take_current_task() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().take_current()
 }
 
-pub fn current_process() -> Option<Arc<ProcessControlBlock>> {
+pub fn current_task() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().current()
 }
 
 pub fn current_user_token() -> usize {
-    let task = current_process().unwrap();
-    let token = task.inner_exclusive_access().get_user_token();
+    let task = current_task().unwrap();
+    let token = task.get_user_token();
     token
 }
 
-pub fn current_trap_cx() -> usize {
-    let task = current_process().unwrap();
-    task.kernel_stack.get_trap_cx()
+pub fn current_process() -> Arc<ProcessControlBlock> {
+    current_task().unwrap().process.upgrade().unwrap()
+}
+
+pub fn current_trap_cx() -> &'static mut TrapFrame {
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .kstack
+        .get_mut::<TrapFrame>()
 }
 
 pub fn run_tasks() {
     loop {
         let mut processor = PROCESSOR.exclusive_access();
-        if let Some(process) = fetch_process() {
+        if let Some(task) = fetch_task() {
+            let pid = task.get_pid();
+            let pgd = task.get_user_token() << PAGE_SIZE_BITS;
             
             let idle_task_cx_ptr = processor.get_idle_task_cx_ptr();
             // access coming task TCB exclusively
-            let mut task_inner = process.inner_exclusive_access();
-            let next_task_cx_ptr = &task_inner.task_context as *const TaskContext;
+            let mut task_inner = task.inner_exclusive_access();
+            let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
+            
             task_inner.task_status = TaskStatus::Running;
+            drop(task_inner);
 
-            let pid = process.getpid();
-            let pgd = task_inner.get_user_token() << PAGE_SIZE_BITS;
             pgdl::set_base(pgd);
             asid::set_asid(pid);
             
             // stop exclusively accessing coming task TCB manually
-            drop(task_inner);
-            processor.current = Some(process);
+            processor.current = Some(task);
             // stop exclusively accessing processor manually
             drop(processor);
 
+            //debug!("switching to task {}", pid);
             unsafe {
                 __switch(
                     idle_task_cx_ptr,
@@ -98,7 +106,7 @@ pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {
     unsafe {
         __switch(
             switched_task_cx_ptr,
-            idle_task_cx_ptr
+            idle_task_cx_ptr,
         );
     }
 }

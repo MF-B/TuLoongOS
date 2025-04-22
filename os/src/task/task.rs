@@ -1,35 +1,73 @@
-use crate::trap::trap_return;
+use alloc::{sync::Weak, sync::Arc};
 
-#[repr(C)]
-#[derive(Default, Copy, Clone, Debug)]
-pub struct TaskContext {
-    ra: usize,
-    sp: usize,
-    s: [usize; 10],
+use crate::{sync::UPSafeCell, trap::TrapFrame};
+
+use super::{context::{TaskContext, TaskStatus}, id::{kstack_alloc, KernelStack, TaskUserRes}, process::ProcessControlBlock};
+
+pub struct TaskControlBlock {
+    pub process: Weak<ProcessControlBlock>, //所属进程
+
+    inner: UPSafeCell<TaskControlBlockInner>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum TaskStatus {
-    UnInit,  // 未初始化
-    Ready,   // 准备运行
-    Running, // 正在运行
-    Zombie,  // 僵尸状态
-}
-impl Default for TaskStatus {
-    fn default() -> Self {
-        TaskStatus::UnInit
-    }
+pub struct TaskControlBlockInner {
+    pub kstack: KernelStack,
+    pub res: Option<TaskUserRes>,
+    pub task_cx: TaskContext,
+    pub task_status: TaskStatus,
+    pub exit_code: Option<i32>,
 }
 
-impl TaskContext {
-    pub fn goto_trap_return(kstack_ptr: usize) -> Self {
+impl TaskControlBlock {
+    pub fn new(
+        process: Arc<ProcessControlBlock>,
+        ustack_base: usize,
+        alloc_user_res: bool,
+    ) -> Self {
+        let res = TaskUserRes::new(Arc::clone(&process), ustack_base, alloc_user_res);
+        let kstack = kstack_alloc();
+        let kstack_top = kstack.get_trap_addr(); //存放了trap上下文后的地址
         Self {
-            ra: trap_return as usize,
-            sp: kstack_ptr,
-            s: [0; 10],
+            process: Arc::downgrade(&process),
+            inner: unsafe {
+                UPSafeCell::new(TaskControlBlockInner {
+                    kstack,
+                    res: Some(res),
+                    task_cx: TaskContext::goto_trap_return(kstack_top),
+                    task_status: TaskStatus::Ready,
+                    exit_code: None,
+                })
+            },
         }
     }
+
+    pub fn get_pid(&self) -> usize {
+        let process = self.process.upgrade().unwrap();
+        process.pid.0
+    }
+
+    pub fn get_user_token(&self) -> usize {
+        let process = self.process.upgrade().unwrap();
+        let inner = process.inner_exclusive_access();
+        inner.memory_set.token()
+    }
+
+    pub fn inner_exclusive_access(&self) -> impl core::ops::DerefMut<Target = TaskControlBlockInner> {
+        self.inner.exclusive_access()
+    }
+    
 }
 
+impl TaskControlBlockInner {
+    pub fn get_trap_cx(&self) -> &'static mut TrapFrame {
+        self.kstack.get_trap_cx()
+    }
+    pub fn get_trap_addr(&self) -> usize {
+        self.kstack.get_trap_addr()
+    }
 
-
+    #[allow(unused)]
+    fn get_status(&self) -> TaskStatus {
+        self.task_status
+    }
+}

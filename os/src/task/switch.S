@@ -9,7 +9,7 @@
 
     .section .text
     .globl __switch
-    .align 2
+    .align 4
 __switch:
     # 保存当前任务上下文到current_task_cx
     st.d $ra, $a0, 0

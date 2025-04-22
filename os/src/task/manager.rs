@@ -3,54 +3,70 @@ use lazy_static::*;
 use log::debug;
 use crate::sync::UPSafeCell;
 
-use super::context::ProcessControlBlock;
+use super::{process::ProcessControlBlock, task::TaskControlBlock};
 
-pub struct ProcessManager {
-    ready_queue: VecDeque<Arc<ProcessControlBlock>>,
+pub struct TaskManager {
+    ready_queue: VecDeque<Arc<TaskControlBlock>>,
 }
 
-impl ProcessManager {
+impl TaskManager {
     pub fn new() -> Self {
         debug!("ProcessManager init");
-        ProcessManager {
+        TaskManager {
             ready_queue: VecDeque::new(),
         }
     }
 
-    pub fn add_process(&mut self, task: Arc<ProcessControlBlock>) {
+    pub fn add(&mut self, task: Arc<TaskControlBlock>) {
         //debug!("Add process pid={}", task.pid.0);
         self.ready_queue.push_back(task);
     }
 
-    pub fn fetch_process(&mut self) -> Option<Arc<ProcessControlBlock>> {
+    pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
         self.ready_queue.pop_front()
+    }
+    pub fn remove(&mut self, task: Arc<TaskControlBlock>) {
+        if let Some((id, _)) = self
+            .ready_queue
+            .iter()
+            .enumerate()
+            .find(|(_, t)| Arc::as_ptr(t) == Arc::as_ptr(&task))
+        {
+            self.ready_queue.remove(id);
+        }
     }
 }
 
 lazy_static! {
-    pub static ref PROCESS_MANAGER: UPSafeCell<ProcessManager> =
-        unsafe { UPSafeCell::new(ProcessManager::new()) };
-    pub static ref PID2TCB: UPSafeCell<BTreeMap<usize, Arc<ProcessControlBlock>>> =
+    pub static ref TASK_MANAGER: UPSafeCell<TaskManager> =
+        unsafe { UPSafeCell::new(TaskManager::new()) };
+    pub static ref PID2PCB: UPSafeCell<BTreeMap<usize, Arc<ProcessControlBlock>>> =
         unsafe { UPSafeCell::new(BTreeMap::new()) };
 }
 
-pub fn add_process(task: Arc<ProcessControlBlock>) {
-    PID2TCB
-        .exclusive_access()
-        .insert(task.getpid(), Arc::clone(&task));
-    PROCESS_MANAGER.exclusive_access().add_process(task);
+pub fn add_task(task: Arc<TaskControlBlock>) {
+    TASK_MANAGER.exclusive_access().add(task);
 }
 
-pub fn fetch_process() -> Option<Arc<ProcessControlBlock>> {
-    PROCESS_MANAGER.exclusive_access().fetch_process()
+pub fn remove_task(task: Arc<TaskControlBlock>) {
+    TASK_MANAGER.exclusive_access().remove(task);
 }
-pub fn pid2task(pid: usize) -> Option<Arc<ProcessControlBlock>> {
-    let map = PID2TCB.exclusive_access();
+
+pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
+    TASK_MANAGER.exclusive_access().fetch()
+}
+pub fn pid2process(pid: usize) -> Option<Arc<ProcessControlBlock>> {
+    let map = PID2PCB.exclusive_access();
     map.get(&pid).map(Arc::clone)
 }
 
-pub fn remove_from_pid2task(pid: usize) {
-    let mut map = PID2TCB.exclusive_access();
+/// 增加一对 PID-进程控制块映射
+pub fn insert_into_pid2process(pid: usize, process: Arc<ProcessControlBlock>) {
+    PID2PCB.exclusive_access().insert(pid, process);
+}
+/// 删除一对 PID-进程控制块映射
+pub fn remove_from_pid2process(pid: usize) {
+    let mut map = PID2PCB.exclusive_access();
     if map.remove(&pid).is_none() {
         panic!("cannot find pid {} in pid2task!", pid);
     }
