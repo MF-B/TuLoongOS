@@ -79,7 +79,6 @@ fn trap_handler(tf: &mut TrapFrame) {
 
     match estat.cause() {
         Trap::Interrupt(Interrupt::Timer) => {
-            trace!("timer interrupt from user");
             ticlr::clear_timer_interrupt();
             suspend_current_and_run_next();
         }

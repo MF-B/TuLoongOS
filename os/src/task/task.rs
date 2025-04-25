@@ -1,6 +1,6 @@
 use alloc::{sync::Weak, sync::Arc};
 
-use crate::{sync::UPSafeCell, trap::TrapFrame};
+use crate::sync::UPSafeCell;
 
 use super::{context::{TaskContext, TaskStatus}, id::{kstack_alloc, KernelStack, TaskUserRes}, process::ProcessControlBlock};
 
@@ -55,16 +55,21 @@ impl TaskControlBlock {
     pub fn inner_exclusive_access(&self) -> impl core::ops::DerefMut<Target = TaskControlBlockInner> {
         self.inner.exclusive_access()
     }
+
+    pub fn get_tid(&self) -> usize {
+        let inner = self.inner_exclusive_access();
+        inner.res.as_ref().unwrap().tid
+    }
     
 }
 
 impl TaskControlBlockInner {
-    pub fn get_trap_cx(&self) -> &'static mut TrapFrame {
-        self.kstack.get_trap_cx()
-    }
-    pub fn get_trap_addr(&self) -> usize {
-        self.kstack.get_trap_addr()
-    }
+    // pub fn get_trap_cx(&self) -> &'static mut TrapFrame {
+    //     self.kstack.get_trap_cx()
+    // }
+    // pub fn get_trap_addr(&self) -> usize {
+    //     self.kstack.get_trap_addr()
+    // }
 
     #[allow(unused)]
     fn get_status(&self) -> TaskStatus {

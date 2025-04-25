@@ -11,7 +11,6 @@ use core::arch::asm;
 
 use alloc::{sync::Arc, vec::Vec};
 use id::TaskUserRes;
-use log::debug;
 use process::ProcessControlBlock;
 use lazy_static::*;
 use manager::{add_task, remove_from_pid2process, remove_task};
@@ -33,6 +32,7 @@ pub fn add_initproc() {
     let _initproc = INITPROC.clone();
 }
 
+#[allow(unused)]
 pub fn block_current_and_run_next() {
     let task = take_current_task().unwrap();
     let mut task_inner = task.inner_exclusive_access();

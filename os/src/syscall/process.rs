@@ -1,5 +1,5 @@
 use alloc::{string::String, sync::Arc, vec::Vec};
-use log::{debug, info, trace};
+use log::{info, trace};
 
 use crate::{fs::inode::{open_file, OpenFlags}, mm::{translated_ref, translated_refmut, translated_str}, task::{exit_current_and_run_next, manager::pid2process, processor::{current_process, current_task, current_user_token}, signal::SignalFlags, suspend_current_and_run_next}, trap::TrapFrame};
 

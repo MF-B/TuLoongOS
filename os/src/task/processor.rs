@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 use lazy_static::*;
-use log::debug;
+use log::trace;
 use loongArch64::register::{asid, pgdl};
 use crate::{config::PAGE_SIZE_BITS, sync::UPSafeCell, trap::TrapFrame};
 
@@ -70,6 +70,8 @@ pub fn run_tasks() {
         if let Some(task) = fetch_task() {
             let pid = task.get_pid();
             let pgd = task.get_user_token() << PAGE_SIZE_BITS;
+            let old_tid  = processor.current.as_ref().map(|t| t.get_tid()).unwrap_or(0);
+            let tid = task.get_tid();
             
             let idle_task_cx_ptr = processor.get_idle_task_cx_ptr();
             // access coming task TCB exclusively
@@ -87,6 +89,11 @@ pub fn run_tasks() {
             // stop exclusively accessing processor manually
             drop(processor);
 
+            if old_tid!=tid {
+                // if the task is not the same as the current one, we need to switch
+                // to the new task
+                trace!("switching from thread{} to thread{}",old_tid, tid);
+            }
             //debug!("switching to task {}", pid);
             unsafe {
                 __switch(

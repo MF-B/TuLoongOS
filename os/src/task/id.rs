@@ -36,6 +36,7 @@ impl KernelStack {
         }
     }
 
+    #[allow(unused)]
     pub fn get_trap_cx(&self) -> &'static mut TrapFrame {
         self.get_mut::<TrapFrame>()
     }

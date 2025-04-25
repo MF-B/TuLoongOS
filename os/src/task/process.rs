@@ -6,7 +6,6 @@ use alloc::sync::Weak;
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
-use log::debug;
 use loongArch64::register::pgdl;
 
 use crate::config::PAGE_SIZE_BITS;
@@ -251,6 +250,7 @@ impl ProcessControlBlock {
 }
 
 impl ProcessControlBlockInner {
+    #[allow(unused)]
     pub fn get_user_token(&self) -> usize {
         self.memory_set.token()
     }
