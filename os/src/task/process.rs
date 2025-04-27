@@ -13,6 +13,7 @@ use crate::fs::stdio::Stdin;
 use crate::fs::stdio::Stdout;
 use crate::fs::File;
 use crate::mm::translated_refmut;
+use crate::sync::mutex::Mutex;
 use crate::sync::UPSafeCell;
 use crate::mm::memory_set::MemorySet;
 use crate::trap::TrapFrame;
@@ -50,7 +51,7 @@ pub struct ProcessControlBlockInner {
     // 线程控制器
     pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
     pub task_res_allocator: RecycleAllocator,
-//    pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
+    pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
 //    pub semaphore_list: Vec<Option<Arc<Semaphore>>>,
 //    pub condvar_list: Vec<Option<Arc<Condvar>>>,
 }
@@ -82,7 +83,7 @@ impl ProcessControlBlock {
                     signals: SignalFlags::empty(),
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
-//                    mutex_list: Vec::new(),
+                    mutex_list: Vec::new(),
 //                    semaphore_list: Vec::new(),
 //                    condvar_list: Vec::new(),
                 })
@@ -206,7 +207,7 @@ impl ProcessControlBlock {
                     signals: SignalFlags::empty(),
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
-//                    mutex_list: Vec::new(),
+                    mutex_list: Vec::new(),
 //                    semaphore_list: Vec::new(),
 //                    condvar_list: Vec::new(),
                 })

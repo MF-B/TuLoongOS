@@ -3,7 +3,7 @@ use lazy_static::*;
 use log::debug;
 use crate::sync::UPSafeCell;
 
-use super::{process::ProcessControlBlock, task::TaskControlBlock};
+use super::{context::TaskStatus, process::ProcessControlBlock, task::TaskControlBlock};
 
 pub struct TaskManager {
     ready_queue: VecDeque<Arc<TaskControlBlock>>,
@@ -55,6 +55,15 @@ pub fn remove_task(task: Arc<TaskControlBlock>) {
 pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
     TASK_MANAGER.exclusive_access().fetch()
 }
+
+pub fn wakeup_task(task: Arc<TaskControlBlock>) {
+    let mut task_inner = task.inner_exclusive_access();
+    task_inner.task_status = TaskStatus::Ready;
+    drop(task_inner);
+    add_task(task);
+}
+
+
 pub fn pid2process(pid: usize) -> Option<Arc<ProcessControlBlock>> {
     let map = PID2PCB.exclusive_access();
     map.get(&pid).map(Arc::clone)
@@ -71,3 +80,4 @@ pub fn remove_from_pid2process(pid: usize) {
         panic!("cannot find pid {} in pid2task!", pid);
     }
 }
+

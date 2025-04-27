@@ -2,12 +2,14 @@ mod fs;
 mod process;
 mod time;
 mod thread;
+mod sync;
 use crate::trap::context::TrapFrame;
 use fs::{sys_close, sys_dup, sys_open, sys_pipe, sys_read};
 pub use fs::sys_write;
 pub use process::sys_exit;
 use process::{sys_exec, sys_fork, sys_getpid, sys_kill, sys_waitpid};
 pub use process::sys_yield;
+use sync::{sys_mutex_create, sys_mutex_lock, sys_mutex_unlock, sys_sleep};
 use thread::{sys_thread_create, sys_waittid};
 use time::sys_get_time;
 
@@ -18,6 +20,7 @@ const SYSCALL_PIPE: usize = 59;
 const SYSCALL_READ: usize = 63;
 const SYSCALL_WRITE: usize = 64;
 const SYSCALL_EXIT: usize = 93;
+const SYSCALL_SLEEP: usize = 101;
 const SYSCALL_YIELD: usize = 124;
 const SYSCALL_KILL: usize = 129;
 const SYSCALL_GET_TIME: usize = 169;
@@ -27,6 +30,9 @@ const SYSCALL_EXEC: usize = 221;
 const SYSCALL_WAITPID: usize = 260;
 const SYSCALL_THREAD_CREATE: usize = 1000;
 const SYSCALL_WAITTID: usize = 1002;
+const SYSCALL_MUTEX_CREATE: usize = 1010;
+const SYSCALL_MUTEX_LOCK: usize = 1011;
+const SYSCALL_MUTEX_UNLOCK: usize = 1012;
 
 
 pub fn syscall(args: &mut TrapFrame,syscall_id: usize) -> isize {
@@ -47,6 +53,10 @@ pub fn syscall(args: &mut TrapFrame,syscall_id: usize) -> isize {
         SYSCALL_KILL => sys_kill(args.regs.a0, args.regs.a1 as i32),
         SYSCALL_THREAD_CREATE => sys_thread_create(args.regs.a0,args.regs.a1),
         SYSCALL_WAITTID => sys_waittid(args.regs.a0),
+        SYSCALL_SLEEP => sys_sleep(args.regs.a0),
+        SYSCALL_MUTEX_CREATE => sys_mutex_create(args.regs.a0 != 0),
+        SYSCALL_MUTEX_LOCK => sys_mutex_lock(args.regs.a0 as usize),
+        SYSCALL_MUTEX_UNLOCK => sys_mutex_unlock(args.regs.a0 as usize),
         _ => {
             panic!("Unsupported syscall_id: {}", syscall_id);
         },

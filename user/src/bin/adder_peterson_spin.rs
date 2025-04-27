@@ -15,7 +15,7 @@ use user_lib::{exit, get_time, thread_create, waittid};
 static mut A: usize = 0;
 static mut FLAG: [bool; 2] = [false; 2];
 static mut TURN: usize = 0;
-const PER_THREAD_DEFAULT: usize = 2000;
+const PER_THREAD_DEFAULT: usize = 5000;
 const THREAD_COUNT_DEFAULT: usize = 2;
 static mut PER_THREAD: usize = 0;
 

@@ -18,7 +18,7 @@ use processor::{current_process, schedule, take_current_task};
 use signal::SignalFlags;
 use context::{TaskContext, TaskStatus};
 use task::TaskControlBlock;
-use crate::fs::inode::{open_file, OpenFlags};
+use crate::{fs::inode::{open_file, OpenFlags}, timer::remove_timer};
 
 lazy_static! {
     pub static ref INITPROC: Arc<ProcessControlBlock> = {
@@ -164,5 +164,5 @@ pub fn check_signals_of_current() -> Option<(i32, &'static str)> {
 
 pub fn remove_inactive_task(task: Arc<TaskControlBlock>) {
     remove_task(Arc::clone(&task));
-    //将主线程退出的那些处于等待的子线程也删除掉
+    remove_timer(Arc::clone(&task));
 }

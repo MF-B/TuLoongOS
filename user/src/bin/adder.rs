@@ -33,7 +33,7 @@ unsafe fn critical_section(t: &mut usize) {
 
     let a = addr_of_mut!(A);
 
-    let cur = a.read_volatile();
+    let cur = unsafe { a.read_volatile() };
 
     for _ in 0..500 {
 
@@ -41,7 +41,7 @@ unsafe fn critical_section(t: &mut usize) {
 
     }
 
-    a.write_volatile(cur + 1);
+    unsafe { a.write_volatile(cur + 1) };
 
 }
 
@@ -50,9 +50,9 @@ unsafe fn f() -> ! {
 
     let mut t = 2usize;
 
-    for _ in 0..PER_THREAD {
+    for _ in 0..unsafe { PER_THREAD } {
 
-        critical_section(&mut t);
+        unsafe { critical_section(&mut t) };
 
     }
 

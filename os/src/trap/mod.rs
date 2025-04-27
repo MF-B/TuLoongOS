@@ -7,7 +7,7 @@ use crate::syscall::syscall;
 use crate::task::processor::{current_trap_cx, current_user_token};
 use crate::task::signal::SignalFlags;
 use crate::task::{check_signals_of_current, current_add_signal, exit_current_and_run_next, suspend_current_and_run_next};
-use crate::timer::set_next_trigger;
+use crate::timer::{check_timer, set_next_trigger};
 use loongArch64::register::estat::{self, Exception, Interrupt, Trap};
 use loongArch64::register::{crmd, dmw0, ecfg, eentry, pwch, pwcl, stlbps, tcfg, ticlr, tlbelo0, tlbelo1, tlbidx, tlbrbadv, tlbrehi, tlbrentry};
 use log::*;
@@ -79,6 +79,7 @@ fn trap_handler(tf: &mut TrapFrame) {
 
     match estat.cause() {
         Trap::Interrupt(Interrupt::Timer) => {
+            check_timer();
             ticlr::clear_timer_interrupt();
             suspend_current_and_run_next();
         }

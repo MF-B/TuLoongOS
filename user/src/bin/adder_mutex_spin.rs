@@ -7,11 +7,10 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use core::ptr::addr_of_mut;
-use core::sync::atomic::{AtomicBool, Ordering};
-use user_lib::{exit, get_time, thread_create, waittid, yield_};
+use user_lib::{exit, get_time, thread_create, waittid};
+use user_lib::{mutex_blocking_create, mutex_lock, mutex_unlock};
 
 static mut A: usize = 0;
-static OCCUPIED: AtomicBool = AtomicBool::new(false);
 const PER_THREAD_DEFAULT: usize = 5000;
 const THREAD_COUNT_DEFAULT: usize = 16;
 static mut PER_THREAD: usize = 0;
@@ -27,25 +26,12 @@ fn critical_section(t: &mut usize) {
     }
 }
 
-fn lock() {
-    while OCCUPIED
-        .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
-        .is_err()
-    {
-        yield_();
-    }
-}
-
-fn unlock() {
-    OCCUPIED.store(false, Ordering::Relaxed);
-}
-
 fn f() -> ! {
     let mut t = 2usize;
     for _ in 0..unsafe { PER_THREAD } {
-        lock();
+        mutex_lock(0);
         critical_section(&mut t);
-        unlock();
+        mutex_unlock(0);
     }
     exit(t as i32)
 }
@@ -63,7 +49,9 @@ pub fn main(argc: usize, argv: &[&str]) -> i32 {
     unsafe {
         PER_THREAD = per_thread;
     }
+
     let start = get_time();
+    assert_eq!(mutex_blocking_create(false), 0);
     let mut v = Vec::new();
     for _ in 0..thread_count {
         v.push(thread_create(f as usize, 0) as usize);
