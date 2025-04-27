@@ -1,0 +1,42 @@
+use alloc::{collections::vec_deque::VecDeque, sync::Arc};
+
+use crate::task::{block_current_and_run_next, manager::wakeup_task, processor::current_task, task::TaskControlBlock};
+
+use super::UPSafeCell;
+
+pub struct Semaphore {
+    pub inner: UPSafeCell<SemaphoreInner>,
+}
+
+pub struct SemaphoreInner {
+    pub count: isize,
+    pub wait_queue: VecDeque<Arc<TaskControlBlock>>,
+}
+
+impl Semaphore {
+    pub fn new(res_count: usize) -> Self {
+        Self {
+            inner: unsafe { UPSafeCell::new(SemaphoreInner { count: res_count as isize, wait_queue: VecDeque::new() }) },
+        }
+    }
+    pub fn up(&self) {
+        let mut inner = self.inner.exclusive_access();
+        if let Some(task) = inner.wait_queue.pop_front() {
+            wakeup_task(task);
+        }
+        else {
+            inner.count += 1;
+        }
+    }
+    pub fn down(&self) {
+        let mut inner = self.inner.exclusive_access();
+        if inner.count > 0 {
+            inner.count -= 1;
+        }
+        else {
+            inner.wait_queue.push_back(current_task().unwrap());
+            drop(inner);
+            block_current_and_run_next();
+        }
+    }
+}

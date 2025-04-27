@@ -9,7 +9,7 @@ pub use fs::sys_write;
 pub use process::sys_exit;
 use process::{sys_exec, sys_fork, sys_getpid, sys_kill, sys_waitpid};
 pub use process::sys_yield;
-use sync::{sys_mutex_create, sys_mutex_lock, sys_mutex_unlock, sys_sleep};
+use sync::{sys_mutex_create, sys_mutex_lock, sys_mutex_unlock, sys_semaphore_create, sys_semaphore_down, sys_semaphore_up, sys_sleep};
 use thread::{sys_thread_create, sys_waittid};
 use time::sys_get_time;
 
@@ -33,6 +33,9 @@ const SYSCALL_WAITTID: usize = 1002;
 const SYSCALL_MUTEX_CREATE: usize = 1010;
 const SYSCALL_MUTEX_LOCK: usize = 1011;
 const SYSCALL_MUTEX_UNLOCK: usize = 1012;
+const SYSCALL_SEMAPHORE_CREATE: usize = 1020;
+const SYSCALL_SEMAPHORE_UP: usize = 1021;
+const SYSCALL_SEMAPHORE_DOWN: usize = 1022;
 
 
 pub fn syscall(args: &mut TrapFrame,syscall_id: usize) -> isize {
@@ -57,6 +60,9 @@ pub fn syscall(args: &mut TrapFrame,syscall_id: usize) -> isize {
         SYSCALL_MUTEX_CREATE => sys_mutex_create(args.regs.a0 != 0),
         SYSCALL_MUTEX_LOCK => sys_mutex_lock(args.regs.a0 as usize),
         SYSCALL_MUTEX_UNLOCK => sys_mutex_unlock(args.regs.a0 as usize),
+        SYSCALL_SEMAPHORE_CREATE => sys_semaphore_create(args.regs.a0),
+        SYSCALL_SEMAPHORE_UP => sys_semaphore_up(args.regs.a0),
+        SYSCALL_SEMAPHORE_DOWN => sys_semaphore_down(args.regs.a0),
         _ => {
             panic!("Unsupported syscall_id: {}", syscall_id);
         },
