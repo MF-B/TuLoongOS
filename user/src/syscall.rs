@@ -28,6 +28,9 @@ const SYSCALL_MUTEX_UNLOCK: usize = 1012;
 const SYSCALL_SEMAPHORE_CREATE: usize = 1020;
 const SYSCALL_SEMAPHORE_UP: usize = 1021;
 const SYSCALL_SEMAPHORE_DOWN: usize = 1022;
+const SYSCALL_CONDVAR_CREATE: usize = 1030;
+const SYSCALL_CONDVAR_SIGNAL: usize = 1031;
+const SYSCALL_CONDVAR_WAIT: usize = 1032;
 
 
 global_asm!(include_str!("syscall.S"));
@@ -174,4 +177,33 @@ pub fn sys_semaphore_up(sem_id: usize) -> isize {
 /// 返回值：假定该操作必定成功，返回 0 。
 pub fn sys_semaphore_down(sem_id: usize) -> isize {
     syscall(SYSCALL_SEMAPHORE_DOWN, [sem_id, 0, 0])
+}
+
+/// 功能：为当前进程新增一个条件变量。
+/// 返回值：假定该操作必定成功，返回创建的条件变量的 ID 。
+/// syscall ID : 1030
+pub fn sys_condvar_create() -> isize {
+    syscall(SYSCALL_CONDVAR_CREATE, [0, 0, 0])
+}
+
+/// 功能：对当前进程的指定条件变量进行 signal 操作，即
+/// 唤醒一个在该条件变量上阻塞的线程（如果存在）。
+/// 参数：condvar_id 表示要操作的条件变量的 ID 。
+/// 返回值：假定该操作必定成功，返回 0 。
+/// syscall ID : 1031
+pub fn sys_condvar_signal(condvar_id: usize) -> isize {
+    syscall(SYSCALL_CONDVAR_SIGNAL, [condvar_id, 0, 0])
+}
+
+/// 功能：对当前进程的指定条件变量进行 wait 操作，分为多个阶段：
+/// 1. 释放当前线程持有的一把互斥锁；
+/// 2. 阻塞当前线程并将其加入指定条件变量的阻塞队列；
+/// 3. 直到当前线程被其他线程通过 signal 操作唤醒；
+/// 4. 重新获取当前线程之前持有的锁。
+/// 参数：mutex_id 表示当前线程持有的互斥锁的 ID ，而
+/// condvar_id 表示要操作的条件变量的 ID 。
+/// 返回值：假定该操作必定成功，返回 0 。
+/// syscall ID : 1032
+pub fn sys_condvar_wait(condvar_id: usize, mutex_id: usize) -> isize {
+    syscall(SYSCALL_CONDVAR_WAIT, [condvar_id, mutex_id, 0])
 }

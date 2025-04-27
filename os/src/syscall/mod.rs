@@ -9,7 +9,7 @@ pub use fs::sys_write;
 pub use process::sys_exit;
 use process::{sys_exec, sys_fork, sys_getpid, sys_kill, sys_waitpid};
 pub use process::sys_yield;
-use sync::{sys_mutex_create, sys_mutex_lock, sys_mutex_unlock, sys_semaphore_create, sys_semaphore_down, sys_semaphore_up, sys_sleep};
+use sync::{sys_condvar_create, sys_condvar_signal, sys_condvar_wait, sys_mutex_create, sys_mutex_lock, sys_mutex_unlock, sys_semaphore_create, sys_semaphore_down, sys_semaphore_up, sys_sleep};
 use thread::{sys_thread_create, sys_waittid};
 use time::sys_get_time;
 
@@ -36,6 +36,9 @@ const SYSCALL_MUTEX_UNLOCK: usize = 1012;
 const SYSCALL_SEMAPHORE_CREATE: usize = 1020;
 const SYSCALL_SEMAPHORE_UP: usize = 1021;
 const SYSCALL_SEMAPHORE_DOWN: usize = 1022;
+const SYSCALL_CONDVAR_CREATE: usize = 1030;
+const SYSCALL_CONDVAR_SIGNAL: usize = 1031;
+const SYSCALL_CONDVAR_WAIT: usize = 1032;
 
 
 pub fn syscall(args: &mut TrapFrame,syscall_id: usize) -> isize {
@@ -63,6 +66,9 @@ pub fn syscall(args: &mut TrapFrame,syscall_id: usize) -> isize {
         SYSCALL_SEMAPHORE_CREATE => sys_semaphore_create(args.regs.a0),
         SYSCALL_SEMAPHORE_UP => sys_semaphore_up(args.regs.a0),
         SYSCALL_SEMAPHORE_DOWN => sys_semaphore_down(args.regs.a0),
+        SYSCALL_CONDVAR_CREATE => sys_condvar_create(),
+        SYSCALL_CONDVAR_SIGNAL => sys_condvar_signal(args.regs.a0),
+        SYSCALL_CONDVAR_WAIT => sys_condvar_wait(args.regs.a0, args.regs.a1),
         _ => {
             panic!("Unsupported syscall_id: {}", syscall_id);
         },
